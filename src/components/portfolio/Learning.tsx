@@ -4,7 +4,7 @@ const roadmap = [
   { name: "Python", status: "Building foundation" },
   { name: "Machine Learning", status: "Currently learning" },
   { name: "Data Processing", status: "Currently learning" },
-  { name: "Model Development", status: "Currently learning" },
+  { name: "ML Models", status: "Learning through practice" },
   { name: "Model Evaluation", status: "Currently learning" },
   { name: "Generative AI", status: "Exploring" },
   { name: "LLMs", status: "Exploring" },
@@ -12,6 +12,7 @@ const roadmap = [
 
 const statusColor: Record<string, string> = {
   "Building foundation": "var(--cyan)",
+  "Learning through practice": "var(--primary)",
   "Currently learning": "var(--primary)",
   Exploring: "var(--violet)",
 };
