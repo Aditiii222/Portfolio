@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { Reveal, SectionHeading } from "./Reveal";
 
 type Group = {
@@ -58,8 +59,18 @@ export function Skills() {
 
         <div className="grid gap-5 md:grid-cols-2">
           {groups.map((g, gi) => (
-            <Reveal key={g.title} delay={gi * 90}>
-              <div className="glass lift h-full rounded-3xl p-6">
+            <Reveal
+              key={g.title}
+              delay={gi * 90}
+              className={
+                gi === 1
+                  ? "md:col-span-2 md:col-start-1 md:row-start-2 md:flex md:justify-center"
+                  : gi === 2
+                    ? "md:col-start-2 md:row-start-1"
+                    : "md:col-start-1 md:row-start-1"
+              }
+            >
+              <div className={cn("glass lift h-full rounded-3xl p-6", gi === 1 && "md:w-1/2")}>
                 <div className="flex items-center justify-between gap-4">
                   <h3 className="text-xl font-medium">{g.title}</h3>
                   <span
