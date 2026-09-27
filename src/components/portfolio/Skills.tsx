@@ -43,15 +43,6 @@ const groups: Group[] = [
       { name: "Practical AI applications", note: "Turning models into usable tools" },
     ],
   },
-  {
-    title: "Exploring",
-    status: "Early exploration",
-    accent: "var(--accent)",
-    items: [
-      { name: "Generative AI", note: "Learning the landscape and tooling" },
-      { name: "Large Language Models", note: "Reading, testing, experimenting" },
-    ],
-  },
 ];
 
 export function Skills() {
