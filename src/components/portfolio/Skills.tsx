@@ -19,18 +19,6 @@ const groups: Group[] = [
     ],
   },
   {
-    title: "Web / technical exposure",
-    status: "Used in coursework & projects",
-    accent: "var(--primary)",
-    items: [
-      { name: "HTML", note: "Structure for web projects" },
-      { name: "CSS", note: "Styling and layout basics" },
-      { name: "JavaScript", note: "Interactivity on the web" },
-      { name: "Firebase", note: "Hosting and app data" },
-      { name: "Google Maps API", note: "Map integration in a live project" },
-    ],
-  },
-  {
     title: "Currently strengthening",
     status: "Active practice",
     accent: "var(--violet)",
@@ -41,6 +29,18 @@ const groups: Group[] = [
       { name: "Model development", note: "Training and tuning models" },
       { name: "Model evaluation", note: "Metrics and validation" },
       { name: "Practical AI applications", note: "Turning models into usable tools" },
+    ],
+  },
+  {
+    title: "Web / technical exposure",
+    status: "Used in coursework & projects",
+    accent: "var(--primary)",
+    items: [
+      { name: "HTML", note: "Structure for web projects" },
+      { name: "CSS", note: "Styling and layout basics" },
+      { name: "JavaScript", note: "Interactivity on the web" },
+      { name: "Firebase", note: "Hosting and app data" },
+      { name: "Google Maps API", note: "Map integration in a live project" },
     ],
   },
 ];
