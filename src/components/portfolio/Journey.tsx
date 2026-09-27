@@ -6,7 +6,7 @@ const steps = [
   { title: "Personal Projects", note: "Building small things end to end" },
   { title: "Technical Communities", note: "Learning alongside other students and developers" },
   { title: "Hackathons & Experiments", note: "Testing ideas under time pressure" },
-  { title: "Seeking AI/ML Internship Opportunities", note: "Open to real-world experience" },
+  { title: "Preparing for an AI/ML Career", note: "Open to real-world experience" },
 ];
 
 const activities = [
@@ -27,7 +27,7 @@ export function Journey() {
         <SectionHeading
           index="05"
           kicker="My journey"
-          title="Early-career, and moving in one direction."
+          title="Learning, Building, and Moving Toward AI/ML"
         />
 
         <div className="relative pl-8 sm:pl-10">

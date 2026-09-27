@@ -36,7 +36,7 @@ export function Projects() {
   return (
     <section id="projects" className="relative scroll-mt-24 py-28">
       <div className="mx-auto max-w-6xl px-5">
-        <SectionHeading index="03" kicker="Projects" title="Things I've helped build." />
+        <SectionHeading index="03" kicker="Projects" title="Projects I've Built & Contributed To" />
 
         <div className="space-y-7">
           <Reveal>
