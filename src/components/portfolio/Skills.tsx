@@ -54,7 +54,7 @@ export function Skills() {
         <SectionHeading
           index="02"
           kicker="Skills & tech stack"
-          title="An honest map of where I am right now."
+          title="Where I Stand. What Comes Next."
         />
 
         <div className="grid gap-5 md:grid-cols-2">
