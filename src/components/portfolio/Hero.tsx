@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Github, Linkedin, MapPin } from "lucide-react";
-import profileImg from "@/assets/profile-placeholder.jpg";
+import profileImg from "@/assets/aditi-portrait.png.asset.json";
 
 const nodes = [
   { x: 12, y: 22, d: 0 },
@@ -156,18 +156,12 @@ export function Hero() {
             />
             <div className="glass relative overflow-hidden rounded-[2rem] p-2">
               <img
-                src={profileImg}
-                alt="Placeholder portrait for Aditi Anand Guddeti — replace with a professional photograph"
+                src={profileImg.url}
+                alt="Aditi Anand Guddeti"
                 width={912}
                 height={912}
                 className="aspect-square w-full rounded-[1.6rem] object-cover"
               />
-              <div className="absolute inset-x-2 bottom-2 rounded-[1.4rem] bg-gradient-to-t from-background/90 to-transparent p-4 pt-14">
-                <p className="mono-label">Photo placeholder</p>
-                <p className="mt-1 text-sm text-foreground/80">
-                  Swap in a professional photograph anytime.
-                </p>
-              </div>
             </div>
           </div>
           <div className="glass mono-label absolute -left-4 top-6 rounded-full px-3 py-1.5 backdrop-blur-md">
