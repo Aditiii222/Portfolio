@@ -4,6 +4,11 @@ const steps = [
   { title: "Academic Projects", note: "Coursework projects at Trinity Academy of Engineering" },
   { title: "Python & AI/ML Learning", note: "Fundamentals, practice and self-study" },
   { title: "Personal Projects", note: "Building small things end to end" },
+  {
+    title: "Leadership & College Involvement",
+    note: "ITSA — Training & Placement & Higher Education Head · 2026–Present",
+    detail: "ITSA Anchoring Club — Member · Previous academic year",
+  },
   { title: "Technical Communities", note: "Learning alongside other students and developers" },
   { title: "Hackathons & Experiments", note: "Testing ideas under time pressure" },
   { title: "Preparing for an AI/ML Career", note: "Open to real-world experience" },
@@ -45,6 +50,9 @@ export function Journey() {
                       <h3 className="text-lg font-medium">{s.title}</h3>
                     </div>
                     <p className="mt-1.5 text-sm text-muted-foreground">{s.note}</p>
+                    {s.detail ? (
+                      <p className="mt-1 text-sm text-muted-foreground">{s.detail}</p>
+                    ) : null}
                   </div>
                 </li>
               </Reveal>
