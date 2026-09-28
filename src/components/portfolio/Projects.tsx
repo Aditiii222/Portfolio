@@ -1,6 +1,23 @@
 import { useRef, useState } from "react";
-import { Bot, MapPinned } from "lucide-react";
+import { ArrowUpRight, Bot, MapPinned } from "lucide-react";
 import { Reveal, SectionHeading } from "./Reveal";
+
+function ViewProjectLink({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="glass lift mono-label inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-primary/90 transition-colors hover:text-foreground"
+    >
+      View Project
+      <ArrowUpRight
+        size={14}
+        className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+      />
+    </a>
+  );
+}
 
 function TiltCard({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -65,6 +82,9 @@ export function Projects() {
                       </span>
                     ))}
                   </div>
+                  <div className="mt-7">
+                    <ViewProjectLink href="https://treemovement-627bd.web.app/" />
+                  </div>
                 </div>
 
                 <div className="relative min-h-52 overflow-hidden rounded-2xl ring-1 ring-border">
@@ -117,6 +137,9 @@ export function Projects() {
                         {t}
                       </span>
                     ))}
+                  </div>
+                  <div className="mt-7">
+                    <ViewProjectLink href="https://aditiii222.github.io/Crock-Kill-Chatbot/" />
                   </div>
                 </div>
 
