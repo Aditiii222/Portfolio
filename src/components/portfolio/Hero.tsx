@@ -93,8 +93,7 @@ export function Hero() {
           </p>
 
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            “Building my skills in AI, ML and Python — one project, experiment and idea at a
-            time.”
+            Building, learning, and experimenting at the intersection of AI &amp; ML.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
