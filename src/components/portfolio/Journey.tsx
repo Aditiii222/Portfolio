@@ -50,6 +50,9 @@ export function Journey() {
                       <h3 className="text-lg font-medium">{s.title}</h3>
                     </div>
                     <p className="mt-1.5 text-sm text-muted-foreground">{s.note}</p>
+                    {s.detail ? (
+                      <p className="mt-1 text-sm text-muted-foreground">{s.detail}</p>
+                    ) : null}
                   </div>
                 </li>
               </Reveal>
