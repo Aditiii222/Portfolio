@@ -138,6 +138,9 @@ export function Projects() {
                       </span>
                     ))}
                   </div>
+                  <div className="mt-7">
+                    <ViewProjectLink href="https://aditiii222.github.io/Crock-Kill-Chatbot/" />
+                  </div>
                 </div>
 
                 <div className="relative overflow-hidden rounded-2xl bg-background/50 p-4 ring-1 ring-border">
