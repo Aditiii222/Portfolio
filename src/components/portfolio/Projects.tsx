@@ -82,6 +82,9 @@ export function Projects() {
                       </span>
                     ))}
                   </div>
+                  <div className="mt-7">
+                    <ViewProjectLink href="https://treemovement-627bd.web.app/" />
+                  </div>
                 </div>
 
                 <div className="relative min-h-52 overflow-hidden rounded-2xl ring-1 ring-border">
