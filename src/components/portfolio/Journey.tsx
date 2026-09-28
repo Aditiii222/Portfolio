@@ -21,7 +21,7 @@ const activities = [
   { label: "Technical communities", note: "Student and developer groups" },
   { label: "Technical events & workshops", note: "Sessions I take part in" },
   { label: "Foreign Language — German", note: "Completed A1; recently appeared for the A2 exam" },
-  { label: "Certifications", note: "To be added as they are completed" },
+  { label: "Certifications", note: "A collection of courses, workshops, and certifications that reflect my continuous learning." },
 ];
 
 export function Journey() {
