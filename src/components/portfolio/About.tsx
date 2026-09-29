@@ -5,7 +5,7 @@ const stages = [
   { label: "Build", note: "Small projects end to end" },
   { label: "Experiment", note: "Try, break, retry" },
   { label: "Improve", note: "Refine with feedback" },
-  { label: "Deploy", note: "Ship it publicly" },
+  { label: "Deploy", note: "Make it live" },
 ];
 
 export function About() {
