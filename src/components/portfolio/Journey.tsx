@@ -20,7 +20,7 @@ const activities = [
   { label: "Hackathons", note: "Participation and experiments" },
   { label: "Technical communities", note: "Student and developer groups" },
   { label: "Technical events & workshops", note: "Sessions I take part in" },
-  { label: "Foreign Language — German", note: "Completed A1; recently appeared for the A2 exam" },
+  { label: "Foreign Language — German", note: "Completed A1, Scored 83% in A2" },
   { label: "Certifications", note: "A collection of courses, workshops, and certifications that reflect my continuous learning." },
 ];
 
