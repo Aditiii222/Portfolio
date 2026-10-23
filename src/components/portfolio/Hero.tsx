@@ -122,7 +122,7 @@ export function Hero() {
                 <Github size={18} />
               </a>
               <a
-                href="https://www.linkedin.com/in/aditi-guddetti-73592b310/"
+                href="https://www.linkedin.com/in/aditi-guddeti-73592b310/"
                 target="_blank"
                 rel="noreferrer"
                 aria-label="LinkedIn"

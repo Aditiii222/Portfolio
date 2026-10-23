@@ -29,7 +29,7 @@ export function Contact() {
               <Mail size={16} /> Email Me
             </a>
             <a
-              href="https://www.linkedin.com/in/aditi-guddetti-73592b310/"
+              href="https://www.linkedin.com/in/aditi-guddeti-73592b310/"
               target="_blank"
               rel="noreferrer"
               className="glass lift inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium"
