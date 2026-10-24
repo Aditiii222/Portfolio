@@ -129,7 +129,11 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl font-mono text-sm text-primary/90 sm:text-base">
-            Third-Year IT Student <span className="text-muted-foreground">|</span> Exploring AI
+            <span className="inline-block min-w-[19ch] whitespace-nowrap">
+              {typed}
+              <span className="animate-caret ml-0.5 text-cyan">▍</span>
+            </span>
+            <span className="text-muted-foreground">|</span> Exploring AI
             &amp; Machine Learning
           </p>
 
@@ -204,15 +208,27 @@ export function Hero() {
               />
             </div>
           </div>
-          <div className="glass mono-label absolute -left-4 top-6 rounded-full px-3 py-1.5 backdrop-blur-md">
-            Python
-          </div>
-          <div className="glass mono-label absolute -right-3 bottom-24 rounded-full px-3 py-1.5">
-            ML
-          </div>
-          <div className="glass mono-label absolute -bottom-2 left-10 rounded-full px-3 py-1.5">
-            LLMs
-          </div>
+          {[
+            { label: "Python", pos: "-left-4 top-6", depth: 26, delay: "0s", blur: true },
+            { label: "ML", pos: "-right-3 bottom-24", depth: -20, delay: "1.4s", blur: false },
+            { label: "LLMs", pos: "-bottom-2 left-10", depth: 32, delay: "2.6s", blur: false },
+          ].map((chip) => (
+            <div
+              key={chip.label}
+              className={`absolute ${chip.pos}`}
+              style={{
+                transform: `translate3d(${(pointer.x - 0.5) * chip.depth}px, ${(pointer.y - 0.5) * chip.depth}px, 0)`,
+                transition: "transform 0.3s ease-out",
+              }}
+            >
+              <div
+                className={`glass mono-label animate-float rounded-full px-3 py-1.5${chip.blur ? " backdrop-blur-md" : ""}`}
+                style={{ animationDelay: chip.delay }}
+              >
+                {chip.label}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
