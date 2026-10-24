@@ -43,7 +43,7 @@ export function Hero() {
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setTyped(phrases[0]);
+      setTyped(phrases[0] ?? "");
       return;
     }
     let timer: ReturnType<typeof setTimeout>;
@@ -52,7 +52,7 @@ export function Hero() {
     let deleting = false;
 
     const tick = () => {
-      const current = phrases[phrase];
+      const current = phrases[phrase] ?? phrases[0] ?? "";
       if (!deleting) {
         char += 1;
         setTyped(current.slice(0, char));
