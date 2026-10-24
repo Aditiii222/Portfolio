@@ -43,7 +43,7 @@ export function Hero() {
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setTyped(phrases[0]);
+      setTyped(phrases[0] ?? "");
       return;
     }
     let timer: ReturnType<typeof setTimeout>;
