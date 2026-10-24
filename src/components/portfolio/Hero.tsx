@@ -16,6 +16,8 @@ const nodes = [
 export function Hero() {
   const sectionRef = useRef<HTMLElement | null>(null);
   const [pointer, setPointer] = useState({ x: 0.5, y: 0.4 });
+  const phrases = ["Third-Year IT Student", "AI/ML Enthusiast", "Builder"];
+  const [typed, setTyped] = useState("");
 
   useEffect(() => {
     const el = sectionRef.current;
