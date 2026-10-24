@@ -41,6 +41,45 @@ export function Hero() {
     };
   }, []);
 
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setTyped(phrases[0]);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    let phrase = 0;
+    let char = 0;
+    let deleting = false;
+
+    const tick = () => {
+      const current = phrases[phrase];
+      if (!deleting) {
+        char += 1;
+        setTyped(current.slice(0, char));
+        if (char === current.length) {
+          deleting = true;
+          timer = setTimeout(tick, 1800);
+          return;
+        }
+        timer = setTimeout(tick, 65);
+      } else {
+        char -= 1;
+        setTyped(current.slice(0, char));
+        if (char === 0) {
+          deleting = false;
+          phrase = (phrase + 1) % phrases.length;
+          timer = setTimeout(tick, 380);
+          return;
+        }
+        timer = setTimeout(tick, 34);
+      }
+    };
+
+    timer = setTimeout(tick, 700);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const shift = (depth: number) => ({
     transform: `translate3d(${(pointer.x - 0.5) * depth}px, ${(pointer.y - 0.5) * depth}px, 0)`,
   });
