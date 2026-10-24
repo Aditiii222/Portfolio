@@ -31,7 +31,7 @@ export function About() {
     setAutoPlay(false);
   };
 
-  const current = stages[active];
+  const current = stages[active] ?? stages[0]!;
 
   return (
     <section id="about" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-28">

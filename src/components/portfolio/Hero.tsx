@@ -52,7 +52,7 @@ export function Hero() {
     let deleting = false;
 
     const tick = () => {
-      const current = phrases[phrase];
+      const current = phrases[phrase] ?? phrases[0] ?? "";
       if (!deleting) {
         char += 1;
         setTyped(current.slice(0, char));
