@@ -79,17 +79,28 @@ export function About() {
   const helixPath = useMemo(() => {
     const g = geo;
     if (!g) return "";
-    const pts: string[] = [];
-    const n = 80;
-    for (let k = 0; k <= n; k++) {
-      const t = (k / n) * Math.PI * 2;
-      const th = Math.PI / 2 + t;
-      const x = g.cx + g.rx * Math.cos(th);
-      const y =
-        g.cy + g.depthY * Math.sin(th) + (stages.length - 1) * g.stepRise * (1 - t / (Math.PI * 2));
-      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    // Anchor the curve to each step's position (at the rest rotation of 90°).
+    const p = stages.map((_, i) => {
+      const th = ((i * STEP_DEG + 90) * Math.PI) / 180;
+      return [
+        g.cx + g.rx * Math.cos(th),
+        g.cy + g.depthY * Math.sin(th) + (stages.length - 1 - i) * g.stepRise,
+      ];
+    });
+    const pt = (i: number) => p[Math.max(0, Math.min(p.length - 1, i))]!;
+    let d = `M${p[0]![0].toFixed(1)},${p[0]![1].toFixed(1)}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = pt(i - 1);
+      const p1 = pt(i);
+      const p2 = pt(i + 1);
+      const p3 = pt(i + 2);
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
     }
-    return `M${pts.join(" L")}`;
+    return d;
   }, [geo]);
 
   const applyPositions = useCallback(() => {
