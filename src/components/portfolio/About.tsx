@@ -62,16 +62,17 @@ export function About() {
     if (!w || !h) return null;
     const compact = w < 480;
     const ry = Math.min(h * 0.22, 96);
+    const stepRise = h * 0.145;
     return {
       w,
       h,
       cx: w / 2,
-      cy: h * 0.34,
+      cy: h * 0.3,
       rx: Math.min(w * (compact ? 0.34 : 0.3), 210),
       ry,
-      depthY: ry * 0.5,
-      stepRise: h * 0.125,
-      coreY: h * 0.34 + h * 0.125 * 1.5,
+      depthY: ry * 0.3,
+      stepRise,
+      coreY: h * 0.3 + stepRise * 2.2,
     };
   }, [size]);
 
