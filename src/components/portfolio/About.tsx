@@ -60,33 +60,47 @@ export function About() {
   const geo = useMemo<Geo | null>(() => {
     const { w, h } = size;
     if (!w || !h) return null;
+    const compact = w < 480;
+    const ry = Math.min(h * 0.22, 96);
+    const stepRise = h * 0.145;
     return {
       w,
       h,
       cx: w / 2,
-      cy: h * 0.36,
-      rx: Math.min(w * 0.27, 180),
-      ry: Math.min(h * 0.2, 90),
-      depthY: Math.min(h * 0.2, 90) * 0.5,
-      stepRise: h * 0.115,
-      coreY: h * 0.36 + h * 0.115 * 1.5,
+      cy: h * 0.3,
+      rx: Math.min(w * (compact ? 0.34 : 0.3), 210),
+      ry,
+      depthY: ry * 0.3,
+      stepRise,
+      coreY: h * 0.3 + stepRise * 2.2,
     };
   }, [size]);
 
   const helixPath = useMemo(() => {
     const g = geo;
     if (!g) return "";
-    const pts: string[] = [];
-    const n = 80;
-    for (let k = 0; k <= n; k++) {
-      const t = (k / n) * Math.PI * 2;
-      const th = Math.PI / 2 + t;
-      const x = g.cx + g.rx * Math.cos(th);
-      const y =
-        g.cy + g.depthY * Math.sin(th) + (stages.length - 1) * g.stepRise * (1 - t / (Math.PI * 2));
-      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    // Anchor the curve to each step's position (at the rest rotation of 90°).
+    const p = stages.map((_, i) => {
+      const th = ((i * STEP_DEG + 90) * Math.PI) / 180;
+      return [
+        g.cx + g.rx * Math.cos(th),
+        g.cy + g.depthY * Math.sin(th) + (stages.length - 1 - i) * g.stepRise,
+      ];
+    });
+    const pt = (i: number) => p[Math.max(0, Math.min(p.length - 1, i))]!;
+    let d = `M${p[0]![0].toFixed(1)},${p[0]![1].toFixed(1)}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = pt(i - 1);
+      const p1 = pt(i);
+      const p2 = pt(i + 1);
+      const p3 = pt(i + 2);
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
     }
-    return `M${pts.join(" L")}`;
+    return d;
   }, [geo]);
 
   const applyPositions = useCallback(() => {
@@ -154,7 +168,10 @@ export function About() {
     const el = sectionRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
+      (entries) => {
+        const entry = entries[0];
+        if (entry) setInView(entry.isIntersecting);
+      },
       { threshold: 0.15 },
     );
     obs.observe(el);
@@ -168,7 +185,9 @@ export function About() {
   useEffect(() => {
     const el = climbRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
       const r = entry.contentRect;
       setSize({ w: r.width, h: r.height });
     });
@@ -424,8 +443,8 @@ export function About() {
                       filter: "blur(6px)",
                     }}
                   />
-                  <span className="relative flex items-center gap-2 px-4 py-2 font-display text-sm transition-transform duration-300 group-hover:-translate-y-1">
-                    <span className={`font-mono text-[0.65rem] ${active === i ? "opacity-90" : "text-primary"}`}>
+                  <span className="relative flex items-center gap-1.5 px-3 py-1.5 font-display text-xs transition-transform duration-300 group-hover:-translate-y-1 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
+                    <span className={`font-mono text-[0.6rem] sm:text-[0.65rem] ${active === i ? "opacity-90" : "text-primary"}`}>
                       0{i + 1}
                     </span>
                     {s.label}
