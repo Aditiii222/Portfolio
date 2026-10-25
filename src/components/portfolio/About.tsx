@@ -80,14 +80,14 @@ export function About() {
     const g = geo;
     if (!g) return "";
     // Anchor the curve to each step's position (at the rest rotation of 90°).
-    const p = stages.map((_, i) => {
+    const p: Array<[number, number]> = stages.map((_, i) => {
       const th = ((i * STEP_DEG + 90) * Math.PI) / 180;
       return [
         g.cx + g.rx * Math.cos(th),
         g.cy + g.depthY * Math.sin(th) + (stages.length - 1 - i) * g.stepRise,
       ];
     });
-    const pt = (i: number) => p[Math.max(0, Math.min(p.length - 1, i))]!;
+    const pt = (i: number): [number, number] => p[Math.max(0, Math.min(p.length - 1, i))]!;
     let d = `M${p[0]![0].toFixed(1)},${p[0]![1].toFixed(1)}`;
     for (let i = 0; i < p.length - 1; i++) {
       const p0 = pt(i - 1);
