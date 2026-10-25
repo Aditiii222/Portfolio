@@ -154,7 +154,10 @@ export function About() {
     const el = sectionRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
+      (entries) => {
+        const entry = entries[0];
+        if (entry) setInView(entry.isIntersecting);
+      },
       { threshold: 0.15 },
     );
     obs.observe(el);
@@ -168,7 +171,9 @@ export function About() {
   useEffect(() => {
     const el = climbRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
       const r = entry.contentRect;
       setSize({ w: r.width, h: r.height });
     });
