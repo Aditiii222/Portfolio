@@ -60,16 +60,18 @@ export function About() {
   const geo = useMemo<Geo | null>(() => {
     const { w, h } = size;
     if (!w || !h) return null;
+    const compact = w < 480;
+    const ry = Math.min(h * 0.22, 96);
     return {
       w,
       h,
       cx: w / 2,
-      cy: h * 0.36,
-      rx: Math.min(w * 0.27, 180),
-      ry: Math.min(h * 0.2, 90),
-      depthY: Math.min(h * 0.2, 90) * 0.5,
-      stepRise: h * 0.115,
-      coreY: h * 0.36 + h * 0.115 * 1.5,
+      cy: h * 0.34,
+      rx: Math.min(w * (compact ? 0.34 : 0.3), 210),
+      ry,
+      depthY: ry * 0.5,
+      stepRise: h * 0.125,
+      coreY: h * 0.34 + h * 0.125 * 1.5,
     };
   }, [size]);
 
@@ -429,8 +431,8 @@ export function About() {
                       filter: "blur(6px)",
                     }}
                   />
-                  <span className="relative flex items-center gap-2 px-4 py-2 font-display text-sm transition-transform duration-300 group-hover:-translate-y-1">
-                    <span className={`font-mono text-[0.65rem] ${active === i ? "opacity-90" : "text-primary"}`}>
+                  <span className="relative flex items-center gap-1.5 px-3 py-1.5 font-display text-xs transition-transform duration-300 group-hover:-translate-y-1 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
+                    <span className={`font-mono text-[0.6rem] sm:text-[0.65rem] ${active === i ? "opacity-90" : "text-primary"}`}>
                       0{i + 1}
                     </span>
                     {s.label}
