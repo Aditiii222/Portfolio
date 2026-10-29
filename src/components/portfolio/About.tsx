@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Reveal, SectionHeading } from "./Reveal";
 
 const stages = [
@@ -12,86 +12,34 @@ const stages = [
 const STEP_DEG = 72;
 const SPRING = 0.014;
 const DAMPING = 0.85;
-const WHALF = 34; // half-width of each wedge tread, degrees
-const EDGE = 7; // tread thickness in screen px
-const R0 = 16; // radius where treads meet the pole
+const RING_R = 34;
+const RING_C = 2 * Math.PI * RING_R;
+
+const stars = [
+  { left: "12%", top: "18%", d: "0s" },
+  { left: "78%", top: "12%", d: "0.8s" },
+  { left: "88%", top: "52%", d: "1.6s" },
+  { left: "20%", top: "72%", d: "2.2s" },
+  { left: "55%", top: "8%", d: "1.1s" },
+  { left: "38%", top: "86%", d: "2.8s" },
+];
 
 type Geo = {
   w: number;
   h: number;
   cx: number;
   cy: number;
-  rise: number;
-  R: number;
+  rx: number;
+  ry: number;
   depthY: number;
-  squash: number;
-  poleTop: number;
-  poleBottom: number;
+  stepRise: number;
+  coreY: number;
 };
-
-const stars = [
-  { left: "10%", top: "14%", d: "0s" },
-  { left: "82%", top: "10%", d: "0.8s" },
-  { left: "90%", top: "55%", d: "1.6s" },
-  { left: "16%", top: "78%", d: "2.2s" },
-  { left: "52%", top: "6%", d: "1.1s" },
-  { left: "36%", top: "90%", d: "2.8s" },
-];
-
-// Wedge tread in local (circular) space: outer arc from -WHALF..WHALF at R, back along the inner arc at R0.
-const WEDGE_D = (() => {
-  const pts: string[] = [];
-  const N = 9;
-  for (let k = 0; k <= N; k++) {
-    const t = ((-WHALF + (2 * WHALF * k) / N) * Math.PI) / 180;
-    pts.push(`${(Math.cos(t)).toFixed(3)},${(Math.sin(t)).toFixed(3)}`);
-  }
-  const NI = 4;
-  for (let k = NI; k >= 0; k--) {
-    const t = ((-WHALF + (2 * WHALF * k) / NI) * Math.PI) / 180;
-    pts.push(`${(R0 * Math.cos(t)).toFixed(3)},${(R0 * Math.sin(t)).toFixed(3)}`);
-  }
-  return `M${pts.join(" L")} Z`;
-})();
-
-// Catmull-Rom through screen-space points, as an SVG path.
-const catmullPath = (p: Array<[number, number]>) => {
-  if (p.length < 2) return "";
-  const pt = (i: number): [number, number] => p[Math.max(0, Math.min(p.length - 1, i))]!;
-  let d = `M${p[0]![0].toFixed(1)},${p[0]![1].toFixed(1)}`;
-  for (let i = 0; i < p.length - 1; i++) {
-    const p0 = pt(i - 1);
-    const p1 = pt(i);
-    const p2 = pt(i + 1);
-    const p3 = pt(i + 2);
-    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
-    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
-  }
-  return d;
-};
-
-const treadTransform = (g: Geo, i: number, rot: number, extraY = 0) =>
-  `translate(${g.cx.toFixed(1)} ${(g.cy - i * g.rise + extraY).toFixed(1)}) scale(1 ${g.squash.toFixed(4)}) rotate(${(i * STEP_DEG + rot).toFixed(2)})`;
-
-const railPoints = (g: Geo, rot: number): Array<[number, number]> =>
-  stages.map((_, i) => {
-    const a = ((i * STEP_DEG + rot) * Math.PI) / 180;
-    const r = g.R + 4;
-    return [g.cx + r * Math.cos(a), g.cy - i * g.rise + g.squash * r * Math.sin(a)];
-  });
 
 export function About() {
   const sectionRef = useRef<HTMLElement | null>(null);
   const climbRef = useRef<HTMLDivElement | null>(null);
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const wrapRefs = useRef<(SVGGElement | null)[]>([]);
-  const topRefs = useRef<(SVGGElement | null)[]>([]);
-  const edgeRefs = useRef<(SVGGElement | null)[]>([]);
-  const labelRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const railRef = useRef<SVGPathElement | null>(null);
+  const stepRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const [active, setActive] = useState(0);
   const [inView, setInView] = useState(false);
@@ -108,70 +56,69 @@ export function About() {
   const inViewRef = useRef(false);
   const reducedRef = useRef(false);
   const geoRef = useRef<Geo | null>(null);
-  const orderRef = useRef("");
 
   const geo = useMemo<Geo | null>(() => {
     const { w, h } = size;
     if (!w || !h) return null;
-    const cy = h * 0.68;
-    const rise = h * 0.115;
-    const R = Math.min(w * 0.3, 150);
-    const depthY = Math.min(h * 0.15, 64);
+    const compact = w < 480;
+    const ry = Math.min(h * 0.22, 96);
+    const stepRise = h * 0.145;
     return {
       w,
       h,
       cx: w / 2,
-      cy,
-      rise,
-      R,
-      depthY,
-      squash: depthY / R,
-      poleTop: cy - rise * (stages.length - 1) - 34,
-      poleBottom: cy + depthY + 12,
+      cy: h * 0.3,
+      rx: Math.min(w * (compact ? 0.34 : 0.3), 210),
+      ry,
+      depthY: ry * 0.3,
+      stepRise,
+      coreY: h * 0.3 + stepRise * 2.2,
     };
   }, [size]);
+
+  const helixPath = useMemo(() => {
+    const g = geo;
+    if (!g) return "";
+    // Anchor the curve to each step's position (at the rest rotation of 90°).
+    const p: Array<[number, number]> = stages.map((_, i) => {
+      const th = ((i * STEP_DEG + 90) * Math.PI) / 180;
+      return [
+        g.cx + g.rx * Math.cos(th),
+        g.cy + g.depthY * Math.sin(th) + (stages.length - 1 - i) * g.stepRise,
+      ];
+    });
+    const pt = (i: number): [number, number] => p[Math.max(0, Math.min(p.length - 1, i))]!;
+    let d = `M${p[0]![0].toFixed(1)},${p[0]![1].toFixed(1)}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = pt(i - 1);
+      const p1 = pt(i);
+      const p2 = pt(i + 1);
+      const p3 = pt(i + 2);
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  }, [geo]);
 
   const applyPositions = useCallback(() => {
     const g = geoRef.current;
     if (!g) return;
     const rot = rotRef.current;
-    const depths = stages.map((_, i) => {
-      const a = ((i * STEP_DEG + rot) * Math.PI) / 180;
-      return { i, sin: Math.sin(a), cos: Math.cos(a) };
-    });
-    for (const { i, sin, cos } of depths) {
+    for (let i = 0; i < stages.length; i++) {
+      const el = stepRefs.current[i];
+      if (!el) continue;
+      const angle = ((i * STEP_DEG + rot) * Math.PI) / 180;
+      const sin = Math.sin(angle);
       const depth = (sin + 1) / 2;
-      topRefs.current[i]?.setAttribute("transform", treadTransform(g, i, rot));
-      edgeRefs.current[i]?.setAttribute("transform", treadTransform(g, i, rot, EDGE));
-      const el = labelRefs.current[i];
-      if (el) {
-        const lr = g.R + 20;
-        const x = g.cx + lr * cos;
-        const y = g.cy - i * g.rise + g.squash * lr * sin;
-        el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) translate(-50%, -50%) scale(${(0.72 + 0.36 * depth).toFixed(3)})`;
-        let op = 0.3 + 0.7 * depth;
-        if (i === activeRef.current) op = Math.max(op, 0.95);
-        el.style.opacity = op.toFixed(3);
-        el.style.zIndex = i === activeRef.current ? "60" : String(10 + Math.round(depth * 40));
-      }
+      const x = g.cx + g.rx * Math.cos(angle);
+      const y = g.cy + g.depthY * sin + (stages.length - 1 - i) * g.stepRise;
+      el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) translate(-50%, -50%) scale(${(0.7 + 0.4 * depth).toFixed(3)})`;
+      el.style.opacity = (0.35 + 0.65 * depth).toFixed(3);
+      el.style.zIndex = String(10 + Math.round(depth * 50));
     }
-    // Reorder treads back-to-front only when the order actually changes.
-    const sorted = [...depths].sort((a, b) => a.sin - b.sin);
-    const key = sorted.map((d) => d.i).join(",");
-    if (key !== orderRef.current) {
-      orderRef.current = key;
-      const svg = svgRef.current;
-      if (svg) {
-        for (const d of sorted) {
-          const wrap = wrapRefs.current[d.i];
-          if (wrap) svg.appendChild(wrap);
-        }
-        const rail = railRef.current;
-        if (rail) svg.appendChild(rail);
-      }
-    }
-    const rail = railRef.current;
-    if (rail) rail.setAttribute("d", catmullPath(railPoints(g, rot)));
   }, []);
 
   const advance = useCallback(
@@ -248,7 +195,7 @@ export function About() {
     return () => ro.disconnect();
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     geoRef.current = geo;
     applyPositions();
   }, [geo, applyPositions]);
@@ -299,36 +246,35 @@ export function About() {
   return (
     <section ref={sectionRef} id="about" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-28">
       <style>{`
-        @keyframes climb-core-pulse {
-          0%, 100% { opacity: 0.7; transform: scale(0.9); }
-          50% { opacity: 1; transform: scale(1.1); }
+        @keyframes climb-panel-in {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: none; }
         }
-        .climb-star { animation: climb-core-pulse 4s ease-in-out infinite; }
+        .climb-panel-enter { animation: climb-panel-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        @keyframes climb-core-pulse {
+          0%, 100% { opacity: 0.8; transform: scale(0.92); }
+          50% { opacity: 1; transform: scale(1.08); }
+        }
+        .climb-core-pulse { animation: climb-core-pulse 3.2s ease-in-out infinite; }
         @keyframes climb-flash {
           0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--cyan) 55%, transparent), 0 0 80px 24px color-mix(in oklab, var(--violet) 55%, transparent); }
           100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
         }
         .climb-flash { animation: climb-flash 1.1s ease-out; }
-        .climb-label {
-          transition: color 0.3s;
+        .climb-ring { transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+        .climb-step {
+          transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s, color 0.3s;
           will-change: transform, opacity;
-          cursor: pointer;
-          background: none;
-          border: none;
-          padding: 0;
-          text-shadow: 0 2px 12px color-mix(in oklab, var(--background) 85%, transparent);
         }
-        .climb-label:focus-visible { outline: 1px solid color-mix(in oklab, var(--cyan) 70%, transparent); outline-offset: 4px; border-radius: 6px; }
-        .climb-tread-edge { fill: color-mix(in oklab, var(--violet) 14%, var(--background)); }
-        .climb-tread-top { fill: url(#climb-tread-grad); transition: fill 0.4s; }
-        .climb-tread-line { fill: none; stroke: color-mix(in oklab, var(--cyan) 40%, transparent); stroke-width: 1; transition: stroke 0.4s; }
-        .climb-rail { fill: none; stroke: url(#climb-rail-grad); stroke-width: 2; stroke-linecap: round; opacity: 0.45; }
-        .tread-wrap { transition: filter 0.4s; }
-        .tread-active .climb-tread-top { fill: url(#climb-tread-grad-active); }
-        .tread-active .climb-tread-line { stroke: color-mix(in oklab, var(--cyan) 85%, transparent); }
-        .tread-active { filter: drop-shadow(0 10px 30px color-mix(in oklab, var(--violet) 55%, transparent)); }
+        .climb-step-active {
+          background: linear-gradient(120deg, var(--violet), color-mix(in oklab, var(--violet) 50%, var(--destructive)));
+          border: 1px solid color-mix(in oklab, var(--cyan) 60%, transparent);
+          box-shadow: 0 12px 44px -12px color-mix(in oklab, var(--violet) 75%, transparent),
+            0 0 24px color-mix(in oklab, var(--cyan) 35%, transparent);
+        }
         @media (prefers-reduced-motion: reduce) {
-          .climb-star, .climb-flash { animation: none; }
+          .climb-panel-enter, .climb-flash { animation: none; }
+          .climb-ring { transition: none; }
         }
       `}</style>
 
@@ -359,158 +305,176 @@ export function About() {
 
       <Reveal delay={120} className="mt-12">
         <div className="glass rounded-3xl p-4 sm:p-6">
-          <div
-            ref={climbRef}
-            role="group"
-            aria-label={`The Climb — a spiral staircase of the learning journey from Learn to Deploy. Current step: ${current.label}. Use arrow keys to move between steps.`}
-            tabIndex={0}
-            onKeyDown={onKeyDown}
-            onMouseEnter={() => (hoverRef.current = true)}
-            onMouseLeave={() => (hoverRef.current = false)}
-            className="relative h-[400px] select-none outline-none sm:h-[500px]"
-          >
-            {/* subtle grid backdrop */}
+          <div className="grid items-center gap-6 lg:grid-cols-[1.15fr_1fr]">
+            {/* The Climb — staircase */}
             <div
-              aria-hidden
-              className="grid-bg absolute inset-0 rounded-2xl opacity-25"
-              style={{
-                maskImage: "radial-gradient(circle at 50% 55%, black, transparent 80%)",
-                WebkitMaskImage: "radial-gradient(circle at 50% 55%, black, transparent 80%)",
-              }}
-            />
-            {stars.map((s, i) => (
-              <span
-                key={i}
+              ref={climbRef}
+              role="group"
+              aria-label="The Climb — the learning journey from Learn to Deploy. Use arrow keys to move between steps."
+              tabIndex={-1}
+              onKeyDown={onKeyDown}
+              onMouseEnter={() => (hoverRef.current = true)}
+              onMouseLeave={() => (hoverRef.current = false)}
+              className="relative h-[340px] select-none sm:h-[400px]"
+            >
+              {/* subtle grid backdrop */}
+              <div
                 aria-hidden
-                className="climb-star absolute size-1 rounded-full bg-cyan/60"
-                style={{ left: s.left, top: s.top, animationDelay: s.d }}
+                className="grid-bg absolute inset-0 rounded-2xl opacity-25"
+                style={{
+                  maskImage: "radial-gradient(circle at 50% 45%, black, transparent 78%)",
+                  WebkitMaskImage: "radial-gradient(circle at 50% 45%, black, transparent 78%)",
+                }}
               />
-            ))}
-
-            {/* spiral staircase — central pole, wedge treads, outer rail */}
-            {geo && (
-              <svg
-                ref={svgRef}
-                aria-hidden
-                className="pointer-events-none absolute inset-0 h-full w-full"
-                viewBox={`0 0 ${geo.w} ${geo.h}`}
-              >
-                <defs>
-                  <linearGradient id="climb-pole-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" style={{ stopColor: "color-mix(in oklab, var(--foreground) 22%, var(--background))" }} />
-                    <stop offset="45%" style={{ stopColor: "color-mix(in oklab, var(--cyan) 30%, var(--foreground))" }} />
-                    <stop offset="100%" style={{ stopColor: "color-mix(in oklab, var(--violet) 25%, var(--background))" }} />
-                  </linearGradient>
-                  <linearGradient id="climb-tread-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: "color-mix(in oklab, var(--cyan) 16%, var(--background))" }} />
-                    <stop offset="100%" style={{ stopColor: "color-mix(in oklab, var(--violet) 22%, var(--background))" }} />
-                  </linearGradient>
-                  <linearGradient id="climb-tread-grad-active" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: "color-mix(in oklab, var(--cyan) 42%, var(--background))" }} />
-                    <stop offset="100%" style={{ stopColor: "color-mix(in oklab, var(--violet) 60%, var(--background))" }} />
-                  </linearGradient>
-                  <linearGradient id="climb-rail-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" style={{ stopColor: "var(--cyan)", stopOpacity: 0.15 }} />
-                    <stop offset="50%" style={{ stopColor: "var(--primary)", stopOpacity: 0.7 }} />
-                    <stop offset="100%" style={{ stopColor: "var(--violet)", stopOpacity: 0.15 }} />
-                  </linearGradient>
-                </defs>
-
-                {/* central pole + finial */}
-                <rect
-                  x={geo.cx - 4}
-                  y={geo.poleTop}
-                  width={8}
-                  height={geo.poleBottom - geo.poleTop}
-                  rx={4}
-                  fill="url(#climb-pole-grad)"
+              {stars.map((s, i) => (
+                <span
+                  key={i}
+                  aria-hidden
+                  className="absolute size-1 rounded-full bg-cyan/60"
+                  style={{ left: s.left, top: s.top, animation: `climb-core-pulse 4s ease-in-out ${s.d} infinite` }}
                 />
-                <circle
-                  cx={geo.cx}
-                  cy={geo.poleTop}
-                  r={7}
-                  className={pulse ? "climb-flash" : ""}
-                  style={{ fill: "linear-gradient(135deg, var(--cyan), var(--violet))" }}
+              ))}
+
+              {/* helix curve */}
+              {geo && helixPath && (
+                <svg
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 h-full w-full"
+                  viewBox={`0 0 ${geo.w} ${geo.h}`}
+                >
+                  <defs>
+                    <linearGradient id="climb-helix-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" style={{ stopColor: "var(--cyan)", stopOpacity: 0.2 }} />
+                      <stop offset="50%" style={{ stopColor: "var(--primary)", stopOpacity: 0.45 }} />
+                      <stop offset="100%" style={{ stopColor: "var(--violet)", stopOpacity: 0.2 }} />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d={helixPath}
+                    fill="none"
+                    stroke="url(#climb-helix-grad)"
+                    strokeWidth="4"
+                    opacity="0.4"
+                    style={{ filter: "blur(4px)" }}
+                  />
+                  <path d={helixPath} fill="none" stroke="url(#climb-helix-grad)" strokeWidth="1.5" />
+                </svg>
+              )}
+
+              {/* core orb + progress ring */}
+              {geo && (
+                <div
+                  aria-hidden
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 ${pulse ? "climb-flash" : ""}`}
+                  style={{ left: geo.cx, top: geo.coreY, zIndex: 35 }}
                   onAnimationEnd={(e) => {
                     if (e.target === e.currentTarget) setPulse(false);
                   }}
-                />
+                >
+                  <div className="relative grid size-24 place-items-center">
+                    <div
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background:
+                          "radial-gradient(circle, color-mix(in oklab, var(--cyan) 30%, transparent), transparent 70%)",
+                        filter: "blur(5px)",
+                      }}
+                    />
+                    <svg className="absolute inset-0" viewBox="0 0 96 96" style={{ transform: "rotate(-90deg)" }}>
+                      <defs>
+                        <linearGradient id="climb-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" style={{ stopColor: "var(--violet)" }} />
+                          <stop
+                            offset="100%"
+                            style={{ stopColor: "color-mix(in oklab, var(--violet) 55%, var(--destructive))" }}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <circle cx="48" cy="48" r={RING_R} fill="none" stroke="var(--border)" strokeWidth="3" />
+                      <circle
+                        className="climb-ring"
+                        cx="48"
+                        cy="48"
+                        r={RING_R}
+                        fill="none"
+                        stroke="url(#climb-ring-grad)"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={RING_C}
+                        style={{ strokeDashoffset: RING_C * (1 - (active + 1) / stages.length) }}
+                      />
+                    </svg>
+                    <div
+                      className="climb-core-pulse relative size-9 rounded-full"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, var(--cyan), var(--violet), color-mix(in oklab, var(--violet) 55%, var(--destructive)))",
+                        boxShadow: "0 0 28px color-mix(in oklab, var(--violet) 60%, transparent)",
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
-                {/* wedge treads, reordered back-to-front each frame */}
-                {stages.map((s, i) => (
-                  <g
-                    key={s.label}
-                    ref={(el) => {
-                      wrapRefs.current[i] = el;
+              {/* steps */}
+              {stages.map((s, i) => (
+                <button
+                  key={s.label}
+                  ref={(el) => {
+                    stepRefs.current[i] = el;
+                  }}
+                  type="button"
+                  aria-label={`${s.label}: ${s.note}`}
+                  aria-pressed={active === i}
+                  onClick={() => selectStep(i)}
+                  style={{ opacity: 0 }}
+                  className={`climb-step group absolute left-0 top-0 cursor-pointer rounded-full border ${
+                    active === i
+                      ? "climb-step-active text-primary-foreground"
+                      : "glass text-foreground/90 hover:border-cyan/50"
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-3 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    style={{
+                      background:
+                        "radial-gradient(circle, color-mix(in oklab, var(--cyan) 35%, transparent), transparent 70%)",
+                      filter: "blur(6px)",
                     }}
-                    className={active === i ? "tread-wrap tread-active" : "tread-wrap"}
-                    transform={treadTransform(geo, i, rotRef.current)}
-                  >
-                    <g
-                      ref={(el) => {
-                        edgeRefs.current[i] = el;
-                      }}
-                      transform={treadTransform(geo, i, rotRef.current, EDGE)}
-                    >
-                      <path d={WEDGE_D} className="climb-tread-edge" />
-                    </g>
-                    <g
-                      ref={(el) => {
-                        topRefs.current[i] = el;
-                      }}
-                      transform={treadTransform(geo, i, rotRef.current)}
-                    >
-                      <path d={WEDGE_D} className="climb-tread-top" />
-                      <path d={WEDGE_D} className="climb-tread-line" />
-                    </g>
-                  </g>
+                  />
+                  <span className="relative flex items-center gap-1.5 px-3 py-1.5 font-display text-xs transition-transform duration-300 group-hover:-translate-y-1 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
+                    <span className={`font-mono text-[0.6rem] sm:text-[0.65rem] ${active === i ? "opacity-90" : "text-primary"}`}>
+                      0{i + 1}
+                    </span>
+                    {s.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* info panel */}
+            <div className="glass rounded-2xl border-primary/25 p-6 sm:p-8">
+              <div key={active} aria-live="polite" className="climb-panel-enter">
+                <p className="mono-label">Step 0{active + 1} / 05</p>
+                <h3 className="mt-3 font-display text-3xl font-medium text-gradient">{current.label}</h3>
+                <p className="mt-2 text-muted-foreground">{current.note}</p>
+              </div>
+              <div className="mt-6 flex items-center gap-2" aria-hidden>
+                {stages.map((s, i) => (
+                  <span
+                    key={s.label}
+                    className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
+                      i <= active ? "bg-primary" : "bg-border"
+                    }`}
+                  />
                 ))}
-
-                {/* outer spiral rail through the tread tips */}
-                <path ref={railRef} d={catmullPath(railPoints(geo, rotRef.current))} className="climb-rail" />
-              </svg>
-            )}
-
-            {/* step labels — floating text on each tread, no boxes */}
-            {stages.map((s, i) => (
-              <button
-                key={s.label}
-                ref={(el) => {
-                  labelRefs.current[i] = el;
-                }}
-                type="button"
-                aria-label={`${s.label}: ${s.note}`}
-                aria-pressed={active === i}
-                onClick={() => selectStep(i)}
-                style={{ opacity: 0 }}
-                className="climb-label absolute left-0 top-0 flex flex-col items-center gap-1"
-              >
-                <span
-                  className={`font-mono text-[0.55rem] tracking-widest ${active === i ? "text-cyan" : "text-primary/70"}`}
-                >
-                  0{i + 1}
-                </span>
-                <span
-                  className={`font-display text-sm leading-none sm:text-base ${
-                    active === i ? "text-gradient font-semibold" : "text-foreground/85"
-                  }`}
-                >
-                  {s.label}
-                </span>
-                <span
-                  className={`max-w-[7rem] text-[0.6rem] leading-snug sm:max-w-[9rem] sm:text-[0.65rem] ${
-                    active === i ? "text-foreground/85" : "text-muted-foreground/70"
-                  }`}
-                >
-                  {s.note}
-                </span>
-              </button>
-            ))}
+              </div>
+              <p className="mt-5 text-center font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
+                Click a step — arrow keys work too
+              </p>
+            </div>
           </div>
-
-          <p className="mt-2 text-center font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
-            Click a step — arrow keys work too
-          </p>
         </div>
       </Reveal>
     </section>
