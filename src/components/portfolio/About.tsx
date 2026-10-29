@@ -430,11 +430,9 @@ export function About() {
                   cy={geo.poleTop}
                   r={7}
                   className={pulse ? "climb-flash" : ""}
-                  style={{
-                    fill: "linear-gradient(135deg, var(--cyan), var(--violet))",
-                    onAnimationEnd: (e) => {
-                      if (e.target === e.currentTarget) setPulse(false);
-                    },
+                  style={{ fill: "linear-gradient(135deg, var(--cyan), var(--violet))" }}
+                  onAnimationEnd={(e) => {
+                    if (e.target === e.currentTarget) setPulse(false);
                   }}
                 />
 
