@@ -1,478 +1,428 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Reveal, SectionHeading } from "./Reveal";
+import { useEffect, useRef, useState } from "react";
+import { Reveal } from "./Reveal";
 
-const stages = [
-  { label: "Learn", note: "Courses, docs, fundamentals" },
-  { label: "Build", note: "Small projects end to end" },
-  { label: "Experiment", note: "Try, break, retry" },
-  { label: "Improve", note: "Refine with feedback" },
-  { label: "Deploy", note: "Make it live" },
-];
+const GREETING = "Hi, I'm Aditi. Tap a question to get to know me.";
 
-const STEP_DEG = 72;
-const SPRING = 0.014;
-const DAMPING = 0.85;
-const RING_R = 34;
-const RING_C = 2 * Math.PI * RING_R;
+const QA_LIST = [
+  {
+    id: "who",
+    q: "Who are you?",
+    a: "I'm Aditi, a third-year IT engineering student from Pune, passionate about exploring AI and turning innovative ideas into practical applications.",
+  },
+  {
+    id: "building",
+    q: "What are you building?",
+    a: "A German language learning web app based on the Goethe framework, this portfolio, and ML projects like Sentiment Analysis of Product Reviews. I've also worked on GreenYug, a tree plantation website built as a group project in collaboration with Vanarai NGO, where I did the Google Maps integration.",
+  },
+  {
+    id: "learning",
+    q: "What are you learning?",
+    a: "I’m exploring AI tools, application development, and emerging technologies while improving my communication, learning German, and focusing on personal growth.",
+  },
+  {
+    id: "led",
+    q: "What have you led?",
+    a: "I'm a Technical Member of Google Developer Group on Campus (GDGOC) at my college, Training & Placement & Higher Education head and Anchoring Club member at the IT Students' Association (ITSA)",
+  },
+  {
+    id: "looking",
+    q: "What are you looking for?",
+    a: "An AI/ML internship where I can apply my skills, gain practical experience, learn from industry professionals, and contribute to impactful real-world projects.",
+  },
+] as const;
 
-const stars = [
-  { left: "12%", top: "18%", d: "0s" },
-  { left: "78%", top: "12%", d: "0.8s" },
-  { left: "88%", top: "52%", d: "1.6s" },
-  { left: "20%", top: "72%", d: "2.2s" },
-  { left: "55%", top: "8%", d: "1.1s" },
-  { left: "38%", top: "86%", d: "2.8s" },
-];
+const SKILL_CHIPS = ["Python", "Java", "C/C++", "SQL", "HTML"];
 
-type Geo = {
-  w: number;
-  h: number;
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
-  depthY: number;
-  stepRise: number;
-  coreY: number;
-};
+type Msg = { id: number; role: "user" | "assistant"; text: string };
+type Phase = "idle" | "dots" | "type";
+
+function TypingDots() {
+  return (
+    <span className="flex items-center gap-1.5 py-1" aria-label="Aditi is typing">
+      {[0, 1, 2].map((i) => (
+        <span key={i} className="chat-dot" style={{ animationDelay: `${i * 0.18}s` }} />
+      ))}
+    </span>
+  );
+}
+
+function CheckMark() {
+  return (
+    <svg aria-hidden viewBox="0 0 16 16" className="size-3 shrink-0">
+      <path
+        d="M3 8.5 6.5 12 13 4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function About() {
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const climbRef = useRef<HTMLDivElement | null>(null);
-  const stepRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ id: 0, role: "assistant", text: GREETING }]);
+  const [used, setUsed] = useState<string[]>([]);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [flash, setFlash] = useState(false);
 
-  const [active, setActive] = useState(0);
-  const [inView, setInView] = useState(false);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const [pulse, setPulse] = useState(false);
-
-  const counterRef = useRef(0);
-  const activeRef = useRef(0);
-  const rotRef = useRef(90);
-  const velRef = useRef(0);
-  const targetRef = useRef(90);
-  const hoverRef = useRef(false);
-  const pauseUntilRef = useRef(0);
-  const inViewRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const idRef = useRef(0);
+  const phaseRef = useRef<Phase>("idle");
+  const fullTextRef = useRef("");
+  const dotsTimerRef = useRef<number | null>(null);
+  const typeTimerRef = useRef<number | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
   const reducedRef = useRef(false);
-  const geoRef = useRef<Geo | null>(null);
 
-  const geo = useMemo<Geo | null>(() => {
-    const { w, h } = size;
-    if (!w || !h) return null;
-    const compact = w < 480;
-    const ry = Math.min(h * 0.22, 96);
-    const stepRise = h * 0.145;
-    return {
-      w,
-      h,
-      cx: w / 2,
-      cy: h * 0.3,
-      rx: Math.min(w * (compact ? 0.34 : 0.3), 210),
-      ry,
-      depthY: ry * 0.3,
-      stepRise,
-      coreY: h * 0.3 + stepRise * 2.2,
-    };
-  }, [size]);
-
-  const helixPath = useMemo(() => {
-    const g = geo;
-    if (!g) return "";
-    // Anchor the curve to each step's position (at the rest rotation of 90°).
-    const p: Array<[number, number]> = stages.map((_, i) => {
-      const th = ((i * STEP_DEG + 90) * Math.PI) / 180;
-      return [
-        g.cx + g.rx * Math.cos(th),
-        g.cy + g.depthY * Math.sin(th) + (stages.length - 1 - i) * g.stepRise,
-      ];
-    });
-    const pt = (i: number): [number, number] => p[Math.max(0, Math.min(p.length - 1, i))]!;
-    let d = `M${p[0]![0].toFixed(1)},${p[0]![1].toFixed(1)}`;
-    for (let i = 0; i < p.length - 1; i++) {
-      const p0 = pt(i - 1);
-      const p1 = pt(i);
-      const p2 = pt(i + 1);
-      const p3 = pt(i + 2);
-      const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-      const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-      const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-      const c2y = p2[1] - (p3[1] - p1[1]) / 6;
-      d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
-    }
-    return d;
-  }, [geo]);
-
-  const applyPositions = useCallback(() => {
-    const g = geoRef.current;
-    if (!g) return;
-    const rot = rotRef.current;
-    for (let i = 0; i < stages.length; i++) {
-      const el = stepRefs.current[i];
-      if (!el) continue;
-      const angle = ((i * STEP_DEG + rot) * Math.PI) / 180;
-      const sin = Math.sin(angle);
-      const depth = (sin + 1) / 2;
-      const x = g.cx + g.rx * Math.cos(angle);
-      const y = g.cy + g.depthY * sin + (stages.length - 1 - i) * g.stepRise;
-      el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) translate(-50%, -50%) scale(${(0.7 + 0.4 * depth).toFixed(3)})`;
-      el.style.opacity = (0.35 + 0.65 * depth).toFixed(3);
-      el.style.zIndex = String(10 + Math.round(depth * 50));
-    }
-  }, []);
-
-  const advance = useCallback(
-    (dir: number) => {
-      const n = stages.length;
-      const prev = ((counterRef.current % n) + n) % n;
-      counterRef.current += dir;
-      const next = ((counterRef.current % n) + n) % n;
-      activeRef.current = next;
-      setActive(next);
-      targetRef.current = 90 - counterRef.current * STEP_DEG;
-      if (reducedRef.current) {
-        rotRef.current = targetRef.current;
-        velRef.current = 0;
-        applyPositions();
-      }
-      if (prev === n - 1 && next === 0) setPulse(true);
-    },
-    [applyPositions],
-  );
-
-  const selectStep = (i: number) => {
-    if (i === activeRef.current) return;
-    const delta = (i - activeRef.current + stages.length) % stages.length;
-    pauseUntilRef.current = Date.now() + 10000;
-    advance(delta);
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      pauseUntilRef.current = Date.now() + 10000;
-      advance(1);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      pauseUntilRef.current = Date.now() + 10000;
-      advance(-1);
-    }
-  };
-
-  // Motion preference (declared first so later effects see it).
   useEffect(() => {
     reducedRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }, []);
 
   useEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry) setInView(entry.isIntersecting);
-      },
-      { threshold: 0.15 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
+    return () => {
+      if (dotsTimerRef.current) clearTimeout(dotsTimerRef.current);
+      if (typeTimerRef.current) clearTimeout(typeTimerRef.current);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    };
   }, []);
 
+  // Auto-scroll to the newest message.
   useEffect(() => {
-    inViewRef.current = inView;
-  }, [inView]);
-
-  useEffect(() => {
-    const el = climbRef.current;
+    const el = scrollRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const r = entry.contentRect;
-      setSize({ w: r.width, h: r.height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+    el.scrollTo({ top: el.scrollHeight, behavior: phaseRef.current === "type" ? "auto" : "smooth" });
+  }, [msgs, phase]);
 
-  useEffect(() => {
-    geoRef.current = geo;
-    applyPositions();
-  }, [geo, applyPositions]);
+  const clearTimers = () => {
+    if (dotsTimerRef.current) {
+      clearTimeout(dotsTimerRef.current);
+      dotsTimerRef.current = null;
+    }
+    if (typeTimerRef.current) {
+      clearTimeout(typeTimerRef.current);
+      typeTimerRef.current = null;
+    }
+  };
 
-  // Spring rotation loop — runs only while the section is in view.
-  useEffect(() => {
-    if (!inView) return;
-    if (reducedRef.current) {
-      applyPositions();
+  // Finish any in-flight answer instantly (full text in the last bubble).
+  const finishInstant = () => {
+    clearTimers();
+    if (phaseRef.current !== "idle") {
+      const full = fullTextRef.current;
+      setMsgs((m) => {
+        const last = m[m.length - 1];
+        if (last && last.role === "assistant" && last.text !== full) {
+          return [...m.slice(0, -1), { ...last, text: full }];
+        }
+        return m;
+      });
+      phaseRef.current = "idle";
+      setPhase("idle");
+    }
+  };
+
+  const typeStep = (i: number) => {
+    const full = fullTextRef.current;
+    if (i >= full.length) {
+      typeTimerRef.current = null;
+      phaseRef.current = "idle";
+      setPhase("idle");
+      setMsgs((m) => {
+        const last = m[m.length - 1];
+        if (last && last.role === "assistant") return [...m.slice(0, -1), { ...last, text: full }];
+        return m;
+      });
       return;
     }
-    let last = performance.now();
-    const tick = (now: number) => {
-      rafRef.current = requestAnimationFrame(tick);
-      const dt = Math.min((now - last) / 16.667, 3);
-      last = now;
-      const target = targetRef.current;
-      const diff = target - rotRef.current;
-      if (Math.abs(diff) < 0.005 && Math.abs(velRef.current) < 0.005) {
-        if (rotRef.current !== target) {
-          rotRef.current = target;
-          velRef.current = 0;
-          applyPositions();
-        }
-        return;
-      }
-      velRef.current = (velRef.current + diff * SPRING * dt) * Math.pow(DAMPING, dt);
-      rotRef.current += velRef.current * dt;
-      applyPositions();
-    };
-    const rafRef = { current: 0 };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [inView, applyPositions]);
+    const next = Math.min(full.length, i + 2);
+    setMsgs((m) =>
+      m.map((msg, idx) =>
+        idx === m.length - 1 && msg.role === "assistant" ? { ...msg, text: full.slice(0, next) } : msg,
+      ),
+    );
+    typeTimerRef.current = window.setTimeout(() => typeStep(next), 18);
+  };
 
-  // Auto-advance every 4s; pauses on hover and for 10s after a click.
-  useEffect(() => {
-    if (reducedRef.current) return;
-    const id = window.setInterval(() => {
-      if (!inViewRef.current || hoverRef.current || Date.now() < pauseUntilRef.current) return;
-      advance(1);
-    }, 4000);
-    return () => window.clearInterval(id);
-  }, [advance]);
+  const handleChip = (qa: (typeof QA_LIST)[number]) => {
+    if (reducedRef.current) {
+      clearTimers();
+      phaseRef.current = "idle";
+      setPhase("idle");
+      setUsed((u) => (u.includes(qa.id) ? u : [...u, qa.id]));
+      const uid = ++idRef.current;
+      const aid = ++idRef.current;
+      setMsgs((m) => [
+        ...m,
+        { id: uid, role: "user", text: qa.q },
+        { id: aid, role: "assistant", text: qa.a },
+      ]);
+      return;
+    }
 
-  const current = stages[active] ?? stages[0]!;
+    finishInstant();
+    setUsed((u) => (u.includes(qa.id) ? u : [...u, qa.id]));
+
+    // Orb flashes brighter on a new question, then returns to its default state.
+    setFlash(true);
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash(false), 700);
+
+    fullTextRef.current = qa.a;
+    const uid = ++idRef.current;
+    const aid = ++idRef.current;
+    setMsgs((m) => [
+      ...m,
+      { id: uid, role: "user", text: qa.q },
+      { id: aid, role: "assistant", text: "" },
+    ]);
+    phaseRef.current = "dots";
+    setPhase("dots");
+    dotsTimerRef.current = window.setTimeout(() => {
+      phaseRef.current = "type";
+      setPhase("type");
+      typeStep(0);
+    }, 700);
+  };
+
+  const clearChat = () => {
+    clearTimers();
+    phaseRef.current = "idle";
+    setPhase("idle");
+    idRef.current = 0;
+    setMsgs([{ id: 0, role: "assistant", text: GREETING }]);
+    setUsed([]);
+  };
+
+  const lastIsTyping = phase === "type";
 
   return (
-    <section ref={sectionRef} id="about" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-28">
+    <section ref={undefined} id="about" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-28">
       <style>{`
-        @keyframes climb-panel-in {
-          from { opacity: 0; transform: translateY(14px); }
+        @keyframes chat-msg-in {
+          from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: none; }
         }
-        .climb-panel-enter { animation: climb-panel-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
-        @keyframes climb-core-pulse {
-          0%, 100% { opacity: 0.8; transform: scale(0.92); }
-          50% { opacity: 1; transform: scale(1.08); }
+        .chat-msg { animation: chat-msg-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+        @keyframes chat-dot-bounce {
+          0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+          40% { transform: scale(1); opacity: 1; }
         }
-        .climb-core-pulse { animation: climb-core-pulse 3.2s ease-in-out infinite; }
-        @keyframes climb-flash {
-          0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--cyan) 55%, transparent), 0 0 80px 24px color-mix(in oklab, var(--violet) 55%, transparent); }
-          100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+        .chat-dot {
+          width: 6px; height: 6px; border-radius: 9999px;
+          background: var(--cyan);
+          animation: chat-dot-bounce 1.1s ease-in-out infinite;
         }
-        .climb-flash { animation: climb-flash 1.1s ease-out; }
-        .climb-ring { transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
-        .climb-step {
-          transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s, color 0.3s;
-          will-change: transform, opacity;
+
+        .chat-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: color-mix(in oklab, var(--primary) 40%, transparent) transparent;
         }
-        .climb-step-active {
-          background: linear-gradient(120deg, var(--violet), color-mix(in oklab, var(--violet) 50%, var(--destructive)));
-          border: 1px solid color-mix(in oklab, var(--cyan) 60%, transparent);
-          box-shadow: 0 12px 44px -12px color-mix(in oklab, var(--violet) 75%, transparent),
-            0 0 24px color-mix(in oklab, var(--cyan) 35%, transparent);
+        .chat-scroll::-webkit-scrollbar { width: 6px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb {
+          background: color-mix(in oklab, var(--primary) 40%, transparent);
+          border-radius: 9999px;
+        }
+
+        .chat-online {
+          background: oklch(0.78 0.17 160);
+          box-shadow: 0 0 8px oklch(0.78 0.17 160 / 60%);
+        }
+
+        /* Orb avatar */
+        @keyframes orb-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes orb-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.92; }
+          50% { transform: scale(1.06); opacity: 1; }
+        }
+        @keyframes orb-flash {
+          0% { transform: scale(1.28); filter: brightness(1.7); }
+          100% { transform: scale(1); filter: brightness(1); }
+        }
+        .aditi-orb { animation: orb-float 5.5s ease-in-out infinite; }
+        .orb-glow {
+          position: absolute; inset: -12px; border-radius: 9999px;
+          background: radial-gradient(circle, color-mix(in oklab, var(--cyan) 40%, transparent), transparent 70%);
+          filter: blur(9px);
+          animation: orb-pulse 3.4s ease-in-out infinite;
+        }
+        .orb-core {
+          background: radial-gradient(circle at 30% 30%, var(--cyan), var(--primary) 55%, var(--violet));
+          box-shadow: 0 0 14px color-mix(in oklab, var(--primary) 55%, transparent),
+            0 0 34px color-mix(in oklab, var(--violet) 40%, transparent);
+          animation: orb-pulse 3.4s ease-in-out infinite;
+        }
+        .aditi-orb[data-typing="true"] .orb-core,
+        .aditi-orb[data-typing="true"] .orb-glow {
+          animation-duration: 0.9s;
+        }
+        .aditi-orb[data-typing="true"] .orb-core {
+          box-shadow: 0 0 20px color-mix(in oklab, var(--primary) 80%, transparent),
+            0 0 48px color-mix(in oklab, var(--violet) 60%, transparent);
+        }
+        .aditi-orb[data-flash="true"] .orb-core {
+          animation: orb-flash 0.6s ease-out;
         }
         @media (prefers-reduced-motion: reduce) {
-          .climb-panel-enter, .climb-flash { animation: none; }
-          .climb-ring { transition: none; }
+          .aditi-orb, .orb-glow, .orb-core, .chat-dot, .chat-msg { animation: none !important; }
         }
       `}</style>
 
-      <SectionHeading index="01" kicker="About me" title="Learning by building, not just reading." />
+      <Reveal className="mb-12 max-w-2xl">
+        <p className="mono-label flex items-center gap-3">
+          <span className="text-primary">01</span>
+          <span className="h-px w-10 bg-border" />
+          About me
+        </p>
+        <h2 className="mt-4 text-3xl font-semibold sm:text-4xl md:text-5xl">About Me</h2>
+        <p className="mt-3 font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Ask me anything
+        </p>
+      </Reveal>
 
-      <div className="max-w-3xl space-y-5 text-base leading-relaxed text-muted-foreground sm:text-lg">
-        <Reveal>
-          <p>
-            I&apos;m <span className="text-foreground">Aditi Anand Guddeti</span>, a third-year
-            Information Technology student at Trinity Academy of Engineering, Pune, with a growing
-            interest in Artificial Intelligence and Machine Learning.
-          </p>
-        </Reveal>
-        <Reveal delay={80}>
-          <p>
-            I&apos;m currently building my skills in Python, machine learning, and practical AI
-            projects while exploring opportunities to gain real-world experience through
-            internships, hackathons, and technical communities.
-          </p>
-        </Reveal>
-        <Reveal delay={160}>
-          <p>
-            I enjoy learning by building, experimenting with new technologies, and turning ideas
-            into useful solutions.
-          </p>
-        </Reveal>
-      </div>
-
-      <Reveal delay={120} className="mt-12">
-        <div className="glass rounded-3xl p-4 sm:p-6">
-          <div className="grid items-center gap-6 lg:grid-cols-[1.15fr_1fr]">
-            {/* The Climb — staircase */}
-            <div
-              ref={climbRef}
-              role="group"
-              aria-label="The Climb — the learning journey from Learn to Deploy. Use arrow keys to move between steps."
-              tabIndex={-1}
-              onKeyDown={onKeyDown}
-              onMouseEnter={() => (hoverRef.current = true)}
-              onMouseLeave={() => (hoverRef.current = false)}
-              className="relative h-[340px] select-none sm:h-[400px]"
-            >
-              {/* subtle grid backdrop */}
-              <div
-                aria-hidden
-                className="grid-bg absolute inset-0 rounded-2xl opacity-25"
-                style={{
-                  maskImage: "radial-gradient(circle at 50% 45%, black, transparent 78%)",
-                  WebkitMaskImage: "radial-gradient(circle at 50% 45%, black, transparent 78%)",
-                }}
-              />
-              {stars.map((s, i) => (
+      <Reveal delay={100}>
+        <div className="grid items-start gap-8 lg:grid-cols-[1fr_1.15fr]">
+          {/* Intro — left column */}
+          <div className="space-y-5">
+            <h3 className="font-display text-2xl font-semibold text-gradient sm:text-3xl">
+              Aditi Anand Guddeti
+            </h3>
+            <p className="max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg">
+              BE Information Technology student at Trinity Academy of Engineering, Pune, building
+              towards a career in AI/ML.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SKILL_CHIPS.map((chip) => (
                 <span
-                  key={i}
-                  aria-hidden
-                  className="absolute size-1 rounded-full bg-cyan/60"
-                  style={{ left: s.left, top: s.top, animation: `climb-core-pulse 4s ease-in-out ${s.d} infinite` }}
-                />
-              ))}
-
-              {/* helix curve */}
-              {geo && helixPath && (
-                <svg
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 h-full w-full"
-                  viewBox={`0 0 ${geo.w} ${geo.h}`}
+                  key={chip}
+                  className="glass rounded-full px-3 py-1.5 font-mono text-xs text-foreground/90"
                 >
-                  <defs>
-                    <linearGradient id="climb-helix-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-                      <stop offset="0%" style={{ stopColor: "var(--cyan)", stopOpacity: 0.2 }} />
-                      <stop offset="50%" style={{ stopColor: "var(--primary)", stopOpacity: 0.45 }} />
-                      <stop offset="100%" style={{ stopColor: "var(--violet)", stopOpacity: 0.2 }} />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d={helixPath}
-                    fill="none"
-                    stroke="url(#climb-helix-grad)"
-                    strokeWidth="4"
-                    opacity="0.4"
-                    style={{ filter: "blur(4px)" }}
-                  />
-                  <path d={helixPath} fill="none" stroke="url(#climb-helix-grad)" strokeWidth="1.5" />
-                </svg>
-              )}
-
-              {/* core orb + progress ring */}
-              {geo && (
-                <div
-                  aria-hidden
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 ${pulse ? "climb-flash" : ""}`}
-                  style={{ left: geo.cx, top: geo.coreY, zIndex: 35 }}
-                  onAnimationEnd={(e) => {
-                    if (e.target === e.currentTarget) setPulse(false);
-                  }}
-                >
-                  <div className="relative grid size-24 place-items-center">
-                    <div
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        background:
-                          "radial-gradient(circle, color-mix(in oklab, var(--cyan) 30%, transparent), transparent 70%)",
-                        filter: "blur(5px)",
-                      }}
-                    />
-                    <svg className="absolute inset-0" viewBox="0 0 96 96" style={{ transform: "rotate(-90deg)" }}>
-                      <defs>
-                        <linearGradient id="climb-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" style={{ stopColor: "var(--violet)" }} />
-                          <stop
-                            offset="100%"
-                            style={{ stopColor: "color-mix(in oklab, var(--violet) 55%, var(--destructive))" }}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <circle cx="48" cy="48" r={RING_R} fill="none" stroke="var(--border)" strokeWidth="3" />
-                      <circle
-                        className="climb-ring"
-                        cx="48"
-                        cy="48"
-                        r={RING_R}
-                        fill="none"
-                        stroke="url(#climb-ring-grad)"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={RING_C}
-                        style={{ strokeDashoffset: RING_C * (1 - (active + 1) / stages.length) }}
-                      />
-                    </svg>
-                    <div
-                      className="climb-core-pulse relative size-9 rounded-full"
-                      style={{
-                        background:
-                          "linear-gradient(135deg, var(--cyan), var(--violet), color-mix(in oklab, var(--violet) 55%, var(--destructive)))",
-                        boxShadow: "0 0 28px color-mix(in oklab, var(--violet) 60%, transparent)",
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* steps */}
-              {stages.map((s, i) => (
-                <button
-                  key={s.label}
-                  ref={(el) => {
-                    stepRefs.current[i] = el;
-                  }}
-                  type="button"
-                  aria-label={`${s.label}: ${s.note}`}
-                  aria-pressed={active === i}
-                  onClick={() => selectStep(i)}
-                  style={{ opacity: 0 }}
-                  className={`climb-step group absolute left-0 top-0 cursor-pointer rounded-full border ${
-                    active === i
-                      ? "climb-step-active text-primary-foreground"
-                      : "glass text-foreground/90 hover:border-cyan/50"
-                  }`}
-                >
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute -inset-3 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                    style={{
-                      background:
-                        "radial-gradient(circle, color-mix(in oklab, var(--cyan) 35%, transparent), transparent 70%)",
-                      filter: "blur(6px)",
-                    }}
-                  />
-                  <span className="relative flex items-center gap-1.5 px-3 py-1.5 font-display text-xs transition-transform duration-300 group-hover:-translate-y-1 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
-                    <span className={`font-mono text-[0.6rem] sm:text-[0.65rem] ${active === i ? "opacity-90" : "text-primary"}`}>
-                      0{i + 1}
-                    </span>
-                    {s.label}
-                  </span>
-                </button>
+                  {chip}
+                </span>
               ))}
             </div>
+          </div>
 
-            {/* info panel */}
-            <div className="glass rounded-2xl border-primary/25 p-6 sm:p-8">
-              <div key={active} aria-live="polite" className="climb-panel-enter">
-                <p className="mono-label">Step 0{active + 1} / 05</p>
-                <h3 className="mt-3 font-display text-3xl font-medium text-gradient">{current.label}</h3>
-                <p className="mt-2 text-muted-foreground">{current.note}</p>
+          {/* Chat card — right column */}
+          <div
+            className="glass overflow-hidden rounded-3xl"
+            style={{ boxShadow: "var(--glow-violet)" }}
+          >
+            {/* Top bar */}
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+              <span className="flex gap-1.5" aria-hidden>
+                <span className="size-2.5 rounded-full" style={{ background: "var(--destructive)" }} />
+                <span className="size-2.5 rounded-full" style={{ background: "var(--cyan)" }} />
+                <span className="size-2.5 rounded-full" style={{ background: "var(--primary)" }} />
+              </span>
+              <span className="ml-2 font-mono text-xs text-muted-foreground">aditi.ai</span>
+              <span className="ml-auto flex items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+                <span className="chat-online size-2 rounded-full" aria-hidden />
+                online
+              </span>
+            </div>
+
+            {/* Orb avatar */}
+            <div className="flex justify-center pb-1 pt-4">
+              <div
+                className="aditi-orb relative grid size-16 place-items-center"
+                data-typing={phase !== "idle"}
+                data-flash={flash}
+                aria-hidden
+              >
+                <span className="orb-glow" />
+                <span className="orb-core relative size-11 rounded-full" />
               </div>
-              <div className="mt-6 flex items-center gap-2" aria-hidden>
-                {stages.map((s, i) => (
-                  <span
-                    key={s.label}
-                    className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
-                      i <= active ? "bg-primary" : "bg-border"
+            </div>
+
+            {/* Messages */}
+            <div
+              ref={scrollRef}
+              role="log"
+              aria-live="polite"
+              aria-label="Chat with Aditi"
+              className="chat-scroll flex h-[300px] flex-col gap-3 overflow-y-auto px-4 py-4 sm:h-[340px]"
+            >
+              {msgs.map((msg, i) => {
+                const isLast = i === msgs.length - 1;
+                if (msg.role === "user") {
+                  return (
+                    <div key={msg.id} className="chat-msg flex justify-end">
+                      <div
+                        className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm leading-relaxed text-primary-foreground"
+                        style={{ background: "var(--gradient-accent)" }}
+                      >
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                }
+                const showDots = phase === "dots" && isLast && msg.text === "";
+                return (
+                  <div key={msg.id} className="chat-msg flex justify-start">
+                    <div
+                      className="max-w-[85%] rounded-2xl rounded-bl-md border border-border px-4 py-2.5 text-sm leading-relaxed text-foreground/95"
+                      style={{ background: "color-mix(in oklab, var(--secondary) 65%, transparent)" }}
+                    >
+                      {showDots ? (
+                        <TypingDots />
+                      ) : (
+                        <>
+                          {msg.text}
+                          {lastIsTyping && isLast && (
+                            <span
+                              aria-hidden
+                              className="animate-caret ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 bg-primary"
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Question chips */}
+            <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+              {QA_LIST.map((qa) => {
+                const usedOnce = used.includes(qa.id);
+                return (
+                  <button
+                    key={qa.id}
+                    type="button"
+                    onClick={() => handleChip(qa)}
+                    className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-xs transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                      usedOnce
+                        ? "border-border/70 bg-secondary/40 text-muted-foreground hover:border-primary/50"
+                        : "border-border bg-secondary/50 text-foreground/90 hover:border-primary/60 hover:text-primary"
                     }`}
-                  />
-                ))}
-              </div>
-              <p className="mt-5 text-center font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
-                Click a step — arrow keys work too
-              </p>
+                  >
+                    {usedOnce && <CheckMark />}
+                    {qa.q}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
+              <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
+                5 questions — tap any chip
+              </span>
+              <button
+                type="button"
+                onClick={clearChat}
+                className="rounded-full border border-border px-3 py-1 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground transition-colors duration-300 hover:border-primary/60 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                Clear chat
+              </button>
             </div>
           </div>
         </div>
