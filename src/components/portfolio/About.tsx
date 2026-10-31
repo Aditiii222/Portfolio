@@ -198,7 +198,7 @@ export function About() {
   const lastIsTyping = phase === "type";
 
   return (
-    <section ref={undefined} id="about" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-28">
+    <section id="about" className="relative mx-auto max-w-6xl scroll-mt-24 px-5 py-28">
       <style>{`
         @keyframes chat-msg-in {
           from { opacity: 0; transform: translateY(10px); }
