@@ -61,6 +61,212 @@ function CheckMark() {
   );
 }
 
+type Dot = { x: number; y: number; vx: number; vy: number; r: number; c: number };
+
+// Accent colours (cyan / primary / violet) as rgb triplets for canvas drawing.
+const CONST_COLORS = [
+  [127, 215, 232],
+  [105, 138, 252],
+  [168, 116, 252],
+] as const;
+
+function Constellation() {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mouse = { x: -9999, y: -9999, active: false };
+    let dots: Dot[] = [];
+    let raf = 0;
+    let running = false;
+    let last = performance.now();
+    let w = 0;
+    let h = 0;
+    let canAttract = !window.matchMedia("(pointer: coarse)").matches;
+
+    const dotCount = () => (window.innerWidth < 768 ? 25 : 45);
+
+    const scatter = () => {
+      dots = Array.from({ length: dotCount() }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.22,
+        vy: (Math.random() - 0.5) * 0.22,
+        r: 0.5 + Math.random() * 0.75,
+        c: Math.floor(Math.random() * CONST_COLORS.length),
+      }));
+    };
+
+    const render = () => {
+      ctx.clearRect(0, 0, w, h);
+      // connection lines, fading with distance
+      for (let i = 0; i < dots.length; i++) {
+        const a = dots[i]!;
+        for (let j = i + 1; j < dots.length; j++) {
+          const b = dots[j]!;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 120 || d === 0) continue;
+          let alpha = (1 - d / 120) * 0.22;
+          if (mouse.active && canAttract) {
+            const aNear = Math.hypot(a.x - mouse.x, a.y - mouse.y) < 150;
+            const bNear = Math.hypot(b.x - mouse.x, b.y - mouse.y) < 150;
+            if (aNear || bNear) alpha = Math.min(0.5, alpha * 2.2);
+          }
+          const col = CONST_COLORS[a.c]!;
+          ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha.toFixed(3)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+      // dots
+      for (const dot of dots) {
+        const col = CONST_COLORS[dot.c]!;
+        const near =
+          mouse.active && canAttract && Math.hypot(dot.x - mouse.x, dot.y - mouse.y) < 150;
+        const alpha = near ? 0.6 : 0.38;
+        ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha})`;
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // soft glow around the cursor
+      if (mouse.active && canAttract) {
+        const g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 110);
+        g.addColorStop(0, "rgba(127,215,232,0.09)");
+        g.addColorStop(1, "rgba(127,215,232,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 110, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    const update = (dt: number) => {
+      const attract = mouse.active && canAttract && window.innerWidth >= 768;
+      for (const dot of dots) {
+        if (attract) {
+          const dx = mouse.x - dot.x;
+          const dy = mouse.y - dot.y;
+          const d = Math.hypot(dx, dy);
+          if (d < 150 && d > 0.001) {
+            const pull = (1 - d / 150) * 0.006 * dt;
+            dot.vx += (dx / d) * pull;
+            dot.vy += (dy / d) * pull;
+          }
+        }
+        const speed = Math.hypot(dot.vx, dot.vy);
+        if (speed > 0.5) {
+          dot.vx = (dot.vx / speed) * 0.5;
+          dot.vy = (dot.vy / speed) * 0.5;
+        }
+        dot.x += dot.vx * dt;
+        dot.y += dot.vy * dt;
+        // wrap around the edges
+        if (dot.x < -8) dot.x = w + 8;
+        else if (dot.x > w + 8) dot.x = -8;
+        if (dot.y < -8) dot.y = h + 8;
+        else if (dot.y > h + 8) dot.y = -8;
+      }
+    };
+
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      const dt = Math.min((now - last) / 16.667, 3);
+      last = now;
+      update(dt);
+      render();
+    };
+
+    const start = () => {
+      if (running || reduced) return;
+      running = true;
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+
+    const resize = () => {
+      const rect = wrap.getBoundingClientRect();
+      w = rect.width;
+      h = rect.height;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.round(w * dpr));
+      canvas.height = Math.max(1, Math.round(h * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canAttract = !window.matchMedia("(pointer: coarse)").matches;
+      scatter();
+      if (reduced) render(); // static frame only
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const rect = wrap.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+      mouse.active = true;
+    };
+    const onLeave = () => {
+      mouse.active = false;
+    };
+
+    resize();
+
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrap);
+
+    // Pause the animation while the section is off-screen.
+    const io = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        if (entry.isIntersecting) start();
+        else stop();
+      },
+      { threshold: 0.05 },
+    );
+    io.observe(wrap);
+
+    wrap.addEventListener("mousemove", onMove);
+    wrap.addEventListener("mouseleave", onLeave);
+
+    return () => {
+      stop();
+      ro.disconnect();
+      io.disconnect();
+      wrap.removeEventListener("mousemove", onMove);
+      wrap.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="pointer-events-auto absolute inset-0 overflow-hidden">
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        style={{
+          maskImage: "radial-gradient(ellipse 100% 100% at 50% 50%, black 50%, transparent 98%)",
+          WebkitMaskImage: "radial-gradient(ellipse 100% 100% at 50% 50%, black 50%, transparent 98%)",
+        }}
+      />
+    </div>
+  );
+}
+
 export function About() {
   const [msgs, setMsgs] = useState<Msg[]>([{ id: 0, role: "assistant", text: GREETING }]);
   const [used, setUsed] = useState<string[]>([]);
