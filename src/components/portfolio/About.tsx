@@ -495,23 +495,26 @@ export function About() {
       <Reveal delay={100}>
         <div className="grid items-start gap-8 lg:grid-cols-[1fr_1.15fr]">
           {/* Intro — left column */}
-          <div className="space-y-5">
-            <h3 className="font-display text-2xl font-semibold text-gradient sm:text-3xl">
-              Aditi Anand Guddeti
-            </h3>
-            <p className="max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg">
-              BE Information Technology student at Trinity Academy of Engineering, Pune, building
-              towards a career in AI/ML.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SKILL_CHIPS.map((chip) => (
-                <span
-                  key={chip}
-                  className="glass rounded-full px-3 py-1.5 font-mono text-xs text-foreground/90"
-                >
-                  {chip}
-                </span>
-              ))}
+          <div className="relative">
+            <Constellation />
+            <div className="pointer-events-none relative z-10 space-y-5 [&>*]:pointer-events-auto">
+              <h3 className="font-display text-2xl font-semibold text-gradient sm:text-3xl">
+                Aditi Anand Guddeti
+              </h3>
+              <p className="max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg">
+                BE Information Technology student at Trinity Academy of Engineering, Pune, building
+                towards a career in AI/ML.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {SKILL_CHIPS.map((chip) => (
+                  <span
+                    key={chip}
+                    className="glass rounded-full px-3 py-1.5 font-mono text-xs text-foreground/90"
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
