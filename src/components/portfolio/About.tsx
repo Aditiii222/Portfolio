@@ -213,6 +213,9 @@ function Constellation() {
       if (reduced) render(); // static frame only
     };
 
+    // Track the cursor on the whole column (the canvas wrapper sits behind the text,
+    // so moves over text bubble to the parent, not to the wrapper).
+    const host = wrap.parentElement ?? wrap;
     const onMove = (e: MouseEvent) => {
       const rect = wrap.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
@@ -240,15 +243,15 @@ function Constellation() {
     );
     io.observe(wrap);
 
-    wrap.addEventListener("mousemove", onMove);
-    wrap.addEventListener("mouseleave", onLeave);
+    host.addEventListener("mousemove", onMove);
+    host.addEventListener("mouseleave", onLeave);
 
     return () => {
       stop();
       ro.disconnect();
       io.disconnect();
-      wrap.removeEventListener("mousemove", onMove);
-      wrap.removeEventListener("mouseleave", onLeave);
+      host.removeEventListener("mousemove", onMove);
+      host.removeEventListener("mouseleave", onLeave);
     };
   }, []);
 
