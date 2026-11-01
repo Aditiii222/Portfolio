@@ -115,11 +115,11 @@ function Constellation() {
           const dy = a.y - b.y;
           const d = Math.hypot(dx, dy);
           if (d > 120 || d === 0) continue;
-          let alpha = (1 - d / 120) * 0.22;
+          let alpha = (1 - d / 120) * 0.14;
           if (mouse.active && canAttract) {
             const aNear = Math.hypot(a.x - mouse.x, a.y - mouse.y) < 150;
             const bNear = Math.hypot(b.x - mouse.x, b.y - mouse.y) < 150;
-            if (aNear || bNear) alpha = Math.min(0.5, alpha * 2.2);
+            if (aNear || bNear) alpha = Math.min(0.32, alpha * 1.7);
           }
           const col = CONST_COLORS[a.c]!;
           ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha.toFixed(3)})`;
@@ -135,7 +135,7 @@ function Constellation() {
         const col = CONST_COLORS[dot.c]!;
         const near =
           mouse.active && canAttract && Math.hypot(dot.x - mouse.x, dot.y - mouse.y) < 150;
-        const alpha = near ? 0.6 : 0.38;
+        const alpha = near ? 0.5 : 0.32;
         ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha})`;
         ctx.beginPath();
         ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
@@ -161,15 +161,15 @@ function Constellation() {
           const dy = mouse.y - dot.y;
           const d = Math.hypot(dx, dy);
           if (d < 150 && d > 0.001) {
-            const pull = (1 - d / 150) * 0.006 * dt;
+            const pull = (1 - d / 150) * 0.0028 * dt;
             dot.vx += (dx / d) * pull;
             dot.vy += (dy / d) * pull;
           }
         }
         const speed = Math.hypot(dot.vx, dot.vy);
-        if (speed > 0.5) {
-          dot.vx = (dot.vx / speed) * 0.5;
-          dot.vy = (dot.vy / speed) * 0.5;
+        if (speed > 0.32) {
+          dot.vx = (dot.vx / speed) * 0.32;
+          dot.vy = (dot.vy / speed) * 0.32;
         }
         dot.x += dot.vx * dt;
         dot.y += dot.vy * dt;
@@ -213,6 +213,9 @@ function Constellation() {
       if (reduced) render(); // static frame only
     };
 
+    // Track the cursor on the whole column (the canvas wrapper sits behind the text,
+    // so moves over text bubble to the parent, not to the wrapper).
+    const host = wrap.parentElement ?? wrap;
     const onMove = (e: MouseEvent) => {
       const rect = wrap.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
@@ -240,15 +243,15 @@ function Constellation() {
     );
     io.observe(wrap);
 
-    wrap.addEventListener("mousemove", onMove);
-    wrap.addEventListener("mouseleave", onLeave);
+    host.addEventListener("mousemove", onMove);
+    host.addEventListener("mouseleave", onLeave);
 
     return () => {
       stop();
       ro.disconnect();
       io.disconnect();
-      wrap.removeEventListener("mousemove", onMove);
-      wrap.removeEventListener("mouseleave", onLeave);
+      host.removeEventListener("mousemove", onMove);
+      host.removeEventListener("mouseleave", onLeave);
     };
   }, []);
 
@@ -495,23 +498,26 @@ export function About() {
       <Reveal delay={100}>
         <div className="grid items-start gap-8 lg:grid-cols-[1fr_1.15fr]">
           {/* Intro — left column */}
-          <div className="space-y-5">
-            <h3 className="font-display text-2xl font-semibold text-gradient sm:text-3xl">
-              Aditi Anand Guddeti
-            </h3>
-            <p className="max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg">
-              BE Information Technology student at Trinity Academy of Engineering, Pune, building
-              towards a career in AI/ML.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {SKILL_CHIPS.map((chip) => (
-                <span
-                  key={chip}
-                  className="glass rounded-full px-3 py-1.5 font-mono text-xs text-foreground/90"
-                >
-                  {chip}
-                </span>
-              ))}
+          <div className="relative">
+            <Constellation />
+            <div className="pointer-events-none relative z-10 space-y-5 [&>*]:pointer-events-auto">
+              <h3 className="font-display text-2xl font-semibold text-gradient sm:text-3xl">
+                Aditi Anand Guddeti
+              </h3>
+              <p className="max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg">
+                BE Information Technology student at Trinity Academy of Engineering, Pune, building
+                towards a career in AI/ML.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {SKILL_CHIPS.map((chip) => (
+                  <span
+                    key={chip}
+                    className="glass rounded-full px-3 py-1.5 font-mono text-xs text-foreground/90"
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
