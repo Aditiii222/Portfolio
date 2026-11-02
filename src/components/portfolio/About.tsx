@@ -31,8 +31,6 @@ const QA_LIST = [
   },
 ] as const;
 
-const SKILL_CHIPS = ["Python", "Java", "C/C++", "SQL", "HTML"];
-
 type Msg = { id: number; role: "user" | "assistant"; text: string };
 type Phase = "idle" | "dots" | "type";
 
@@ -91,7 +89,7 @@ function Constellation() {
     let h = 0;
     let canAttract = !window.matchMedia("(pointer: coarse)").matches;
 
-    const dotCount = () => (window.innerWidth < 768 ? 25 : 45);
+    const dotCount = () => (window.innerWidth < 768 ? 30 : 70);
 
     const scatter = () => {
       dots = Array.from({ length: dotCount() }, () => ({
@@ -213,8 +211,8 @@ function Constellation() {
       if (reduced) render(); // static frame only
     };
 
-    // Track the cursor on the whole column (the canvas wrapper sits behind the text,
-    // so moves over text bubble to the parent, not to the wrapper).
+    // Track the cursor on the whole section (the canvas wrapper sits behind
+    // everything, so moves anywhere — including over the chat card — bubble up).
     const host = wrap.parentElement ?? wrap;
     const onMove = (e: MouseEvent) => {
       const rect = wrap.getBoundingClientRect();
@@ -256,14 +254,16 @@ function Constellation() {
   }, []);
 
   return (
-    <div ref={wrapRef} className="pointer-events-auto absolute inset-0 overflow-hidden">
+    <div ref={wrapRef} className="pointer-events-none absolute inset-0 overflow-hidden">
       <canvas
         ref={canvasRef}
         aria-hidden
         className="pointer-events-none absolute inset-0 h-full w-full"
         style={{
-          maskImage: "radial-gradient(ellipse 100% 100% at 50% 50%, black 50%, transparent 98%)",
-          WebkitMaskImage: "radial-gradient(ellipse 100% 100% at 50% 50%, black 50%, transparent 98%)",
+          maskImage:
+            "radial-gradient(ellipse 100% 100% at 50% 50%, black 55%, transparent 98%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 100% 100% at 50% 50%, black 55%, transparent 98%)",
         }}
       />
     </div>
@@ -483,159 +483,133 @@ export function About() {
         }
       `}</style>
 
-      <Reveal className="mb-12 max-w-2xl">
+      {/* Network background — fills the whole section, behind everything */}
+      <Constellation />
+
+      <Reveal className="relative z-10 mb-10 max-w-2xl">
         <p className="mono-label flex items-center gap-3">
           <span className="text-primary">01</span>
           <span className="h-px w-10 bg-border" />
           About me
         </p>
         <h2 className="mt-4 text-3xl font-semibold sm:text-4xl md:text-5xl">About Me</h2>
-        <p className="mt-3 font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Ask me anything
-        </p>
       </Reveal>
 
-      <Reveal delay={100}>
-        <div className="grid items-start gap-8 lg:grid-cols-[1fr_1.15fr]">
-          {/* Intro — left column */}
-          <div className="relative">
-            <Constellation />
-            <div className="pointer-events-none relative z-10 space-y-5 [&>*]:pointer-events-auto">
-              <h3 className="font-display text-2xl font-semibold text-gradient sm:text-3xl">
-                Aditi Anand Guddeti
-              </h3>
-              <p className="max-w-md text-base leading-relaxed text-muted-foreground sm:text-lg">
-                BE Information Technology student at Trinity Academy of Engineering, Pune, building
-                towards a career in AI/ML.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {SKILL_CHIPS.map((chip) => (
-                  <span
-                    key={chip}
-                    className="glass rounded-full px-3 py-1.5 font-mono text-xs text-foreground/90"
-                  >
-                    {chip}
-                  </span>
-                ))}
-              </div>
+      <Reveal delay={100} className="relative z-10">
+        {/* Chat card — centred single column */}
+        <div
+          className="glass mx-auto w-full max-w-[640px] overflow-hidden rounded-3xl"
+          style={{ boxShadow: "var(--glow-violet)" }}
+        >
+          {/* Top bar */}
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <span className="flex gap-1.5" aria-hidden>
+              <span className="size-2.5 rounded-full" style={{ background: "var(--destructive)" }} />
+              <span className="size-2.5 rounded-full" style={{ background: "var(--cyan)" }} />
+              <span className="size-2.5 rounded-full" style={{ background: "var(--primary)" }} />
+            </span>
+            <span className="ml-2 font-mono text-xs text-muted-foreground">aditi.ai</span>
+            <span className="ml-auto flex items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+              <span className="chat-online size-2 rounded-full" aria-hidden />
+              online
+            </span>
+          </div>
+
+          {/* Orb avatar */}
+          <div className="flex justify-center pb-1 pt-4">
+            <div
+              className="aditi-orb relative grid size-16 place-items-center"
+              data-typing={phase !== "idle"}
+              data-flash={flash}
+              aria-hidden
+            >
+              <span className="orb-glow" />
+              <span className="orb-core relative size-11 rounded-full" />
             </div>
           </div>
 
-          {/* Chat card — right column */}
+          {/* Messages */}
           <div
-            className="glass overflow-hidden rounded-3xl"
-            style={{ boxShadow: "var(--glow-violet)" }}
+            ref={scrollRef}
+            role="log"
+            aria-live="polite"
+            aria-label="Chat with Aditi"
+            className="chat-scroll flex h-[300px] flex-col gap-3 overflow-y-auto px-4 py-4 sm:h-[340px]"
           >
-            {/* Top bar */}
-            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <span className="flex gap-1.5" aria-hidden>
-                <span className="size-2.5 rounded-full" style={{ background: "var(--destructive)" }} />
-                <span className="size-2.5 rounded-full" style={{ background: "var(--cyan)" }} />
-                <span className="size-2.5 rounded-full" style={{ background: "var(--primary)" }} />
-              </span>
-              <span className="ml-2 font-mono text-xs text-muted-foreground">aditi.ai</span>
-              <span className="ml-auto flex items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
-                <span className="chat-online size-2 rounded-full" aria-hidden />
-                online
-              </span>
-            </div>
-
-            {/* Orb avatar */}
-            <div className="flex justify-center pb-1 pt-4">
-              <div
-                className="aditi-orb relative grid size-16 place-items-center"
-                data-typing={phase !== "idle"}
-                data-flash={flash}
-                aria-hidden
-              >
-                <span className="orb-glow" />
-                <span className="orb-core relative size-11 rounded-full" />
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div
-              ref={scrollRef}
-              role="log"
-              aria-live="polite"
-              aria-label="Chat with Aditi"
-              className="chat-scroll flex h-[300px] flex-col gap-3 overflow-y-auto px-4 py-4 sm:h-[340px]"
-            >
-              {msgs.map((msg, i) => {
-                const isLast = i === msgs.length - 1;
-                if (msg.role === "user") {
-                  return (
-                    <div key={msg.id} className="chat-msg flex justify-end">
-                      <div
-                        className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm leading-relaxed text-primary-foreground"
-                        style={{ background: "var(--gradient-accent)" }}
-                      >
-                        {msg.text}
-                      </div>
-                    </div>
-                  );
-                }
-                const showDots = phase === "dots" && isLast && msg.text === "";
+            {msgs.map((msg, i) => {
+              const isLast = i === msgs.length - 1;
+              if (msg.role === "user") {
                 return (
-                  <div key={msg.id} className="chat-msg flex justify-start">
+                  <div key={msg.id} className="chat-msg flex justify-end">
                     <div
-                      className="max-w-[85%] rounded-2xl rounded-bl-md border border-border px-4 py-2.5 text-sm leading-relaxed text-foreground/95"
-                      style={{ background: "color-mix(in oklab, var(--secondary) 65%, transparent)" }}
+                      className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm leading-relaxed text-primary-foreground"
+                      style={{ background: "var(--gradient-accent)" }}
                     >
-                      {showDots ? (
-                        <TypingDots />
-                      ) : (
-                        <>
-                          {msg.text}
-                          {lastIsTyping && isLast && (
-                            <span
-                              aria-hidden
-                              className="animate-caret ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 bg-primary"
-                            />
-                          )}
-                        </>
-                      )}
+                      {msg.text}
                     </div>
                   </div>
                 );
-              })}
-            </div>
-
-            {/* Question chips */}
-            <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
-              {QA_LIST.map((qa) => {
-                const usedOnce = used.includes(qa.id);
-                return (
-                  <button
-                    key={qa.id}
-                    type="button"
-                    onClick={() => handleChip(qa)}
-                    className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-xs transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                      usedOnce
-                        ? "border-border/70 bg-secondary/40 text-muted-foreground hover:border-primary/50"
-                        : "border-border bg-secondary/50 text-foreground/90 hover:border-primary/60 hover:text-primary"
-                    }`}
+              }
+              const showDots = phase === "dots" && isLast && msg.text === "";
+              return (
+                <div key={msg.id} className="chat-msg flex justify-start">
+                  <div
+                    className="max-w-[85%] rounded-2xl rounded-bl-md border border-border px-4 py-2.5 text-sm leading-relaxed text-foreground/95"
+                    style={{ background: "color-mix(in oklab, var(--secondary) 65%, transparent)" }}
                   >
-                    {usedOnce && <CheckMark />}
-                    {qa.q}
-                  </button>
-                );
-              })}
-            </div>
+                    {showDots ? (
+                      <TypingDots />
+                    ) : (
+                      <>
+                        {msg.text}
+                        {lastIsTyping && isLast && (
+                          <span
+                            aria-hidden
+                            className="animate-caret ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 bg-primary"
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
-              <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
-                5 questions — tap any chip
-              </span>
-              <button
-                type="button"
-                onClick={clearChat}
-                className="rounded-full border border-border px-3 py-1 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground transition-colors duration-300 hover:border-primary/60 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                Clear chat
-              </button>
-            </div>
+          {/* Question chips */}
+          <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+            {QA_LIST.map((qa) => {
+              const usedOnce = used.includes(qa.id);
+              return (
+                <button
+                  key={qa.id}
+                  type="button"
+                  onClick={() => handleChip(qa)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-xs transition-colors duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                    usedOnce
+                      ? "border-border/70 bg-secondary/40 text-muted-foreground hover:border-primary/50"
+                      : "border-border bg-secondary/50 text-foreground/90 hover:border-primary/60 hover:text-primary"
+                  }`}
+                >
+                  {usedOnce && <CheckMark />}
+                  {qa.q}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between border-t border-border px-4 py-2.5">
+            <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground">
+              5 questions — tap any chip
+            </span>
+            <button
+              type="button"
+              onClick={clearChat}
+              className="rounded-full border border-border px-3 py-1 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground transition-colors duration-300 hover:border-primary/60 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Clear chat
+            </button>
           </div>
         </div>
       </Reveal>
