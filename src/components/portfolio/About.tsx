@@ -59,7 +59,7 @@ function CheckMark() {
   );
 }
 
-type Dot = { x: number; y: number; vx: number; vy: number; r: number; c: number };
+type Dot = { x: number; y: number; vx: number; vy: number; r: number; c: number; hub: boolean };
 
 // Accent colours (cyan / primary / violet) as rgb triplets for canvas drawing.
 const CONST_COLORS = [
@@ -105,6 +105,7 @@ function Constellation() {
     const render = () => {
       ctx.clearRect(0, 0, w, h);
       // connection lines, fading with distance
+      const edges: Array<[number, number, number]> = [];
       for (let i = 0; i < dots.length; i++) {
         const a = dots[i]!;
         for (let j = i + 1; j < dots.length; j++) {
@@ -112,13 +113,14 @@ function Constellation() {
           const dx = a.x - b.x;
           const dy = a.y - b.y;
           const d = Math.hypot(dx, dy);
-          if (d > 120 || d === 0) continue;
-          let alpha = (1 - d / 120) * 0.14;
+          if (d > 160 || d === 0) continue;
+          let alpha = (1 - d / 160) * 0.5;
           if (mouse.active && canAttract) {
-            const aNear = Math.hypot(a.x - mouse.x, a.y - mouse.y) < 150;
-            const bNear = Math.hypot(b.x - mouse.x, b.y - mouse.y) < 150;
-            if (aNear || bNear) alpha = Math.min(0.32, alpha * 1.7);
+            const aNear = Math.hypot(a.x - mouse.x, a.y - mouse.y) < 200;
+            const bNear = Math.hypot(b.x - mouse.x, b.y - mouse.y) < 200;
+            if (aNear || bNear) alpha = Math.min(0.8, alpha * 2.4);
           }
+          edges.push([i, j, alpha]);
           const col = CONST_COLORS[a.c]!;
           ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha.toFixed(3)})`;
           ctx.lineWidth = 1;
@@ -128,25 +130,68 @@ function Constellation() {
           ctx.stroke();
         }
       }
-      // dots
+      // lightly fill triangles where three nearby dots connect, for depth
+      const adj = new Map<number, Set<number>>();
+      const setFor = (k: number) => {
+        let s = adj.get(k);
+        if (!s) {
+          s = new Set();
+          adj.set(k, s);
+        }
+        return s;
+      };
+      for (const [i, j] of edges) {
+        setFor(i).add(j);
+        setFor(j).add(i);
+      }
+      for (const [i, j, ea] of edges) {
+        const bi = adj.get(i);
+        const bj = adj.get(j);
+        if (!bi || !bj) continue;
+        const p = dots[i]!;
+        const q = dots[j]!;
+        for (const k of bi) {
+          if (k <= j || !bj.has(k)) continue;
+          const r = dots[k]!;
+          const bright =
+            mouse.active &&
+            canAttract &&
+            (Math.hypot(p.x - mouse.x, p.y - mouse.y) < 200 ||
+              Math.hypot(q.x - mouse.x, q.y - mouse.y) < 200 ||
+              Math.hypot(r.x - mouse.x, r.y - mouse.y) < 200)
+              ? 0.07
+              : 0.035;
+          ctx.fillStyle = `rgba(127,215,232,${(bright * Math.min(1, ea * 2 + 0.3)).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(q.x, q.y);
+          ctx.lineTo(r.x, r.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      // dots — larger, with a soft glow; every 6th is a bigger "hub" node
       for (const dot of dots) {
         const col = CONST_COLORS[dot.c]!;
         const near =
-          mouse.active && canAttract && Math.hypot(dot.x - mouse.x, dot.y - mouse.y) < 150;
-        const alpha = near ? 0.5 : 0.32;
+          mouse.active && canAttract && Math.hypot(dot.x - mouse.x, dot.y - mouse.y) < 200;
+        const alpha = near ? 0.9 : dot.hub ? 0.9 : 0.75;
+        ctx.shadowBlur = dot.hub ? 14 : 8;
+        ctx.shadowColor = `rgba(${col[0]},${col[1]},${col[2]},${alpha})`;
         ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha})`;
         ctx.beginPath();
         ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.shadowBlur = 0;
       // soft glow around the cursor
       if (mouse.active && canAttract) {
-        const g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 110);
-        g.addColorStop(0, "rgba(127,215,232,0.09)");
+        const g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 140);
+        g.addColorStop(0, "rgba(127,215,232,0.12)");
         g.addColorStop(1, "rgba(127,215,232,0)");
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(mouse.x, mouse.y, 110, 0, Math.PI * 2);
+        ctx.arc(mouse.x, mouse.y, 140, 0, Math.PI * 2);
         ctx.fill();
       }
     };
@@ -158,16 +203,16 @@ function Constellation() {
           const dx = mouse.x - dot.x;
           const dy = mouse.y - dot.y;
           const d = Math.hypot(dx, dy);
-          if (d < 150 && d > 0.001) {
-            const pull = (1 - d / 150) * 0.0028 * dt;
+          if (d < 200 && d > 0.001) {
+            const pull = (1 - d / 200) * 0.0024 * dt;
             dot.vx += (dx / d) * pull;
             dot.vy += (dy / d) * pull;
           }
         }
         const speed = Math.hypot(dot.vx, dot.vy);
-        if (speed > 0.32) {
-          dot.vx = (dot.vx / speed) * 0.32;
-          dot.vy = (dot.vy / speed) * 0.32;
+        if (speed > 0.3) {
+          dot.vx = (dot.vx / speed) * 0.3;
+          dot.vy = (dot.vy / speed) * 0.3;
         }
         dot.x += dot.vx * dt;
         dot.y += dot.vy * dt;
