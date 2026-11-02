@@ -133,8 +133,6 @@ export function Hero() {
               {typed}
               <span className="animate-caret ml-0.5 text-cyan">▍</span>
             </span>
-            <span className="text-muted-foreground">|</span> Exploring AI
-            &amp; Machine Learning
           </p>
 
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
