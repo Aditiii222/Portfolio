@@ -89,17 +89,21 @@ function Constellation() {
     let h = 0;
     let canAttract = !window.matchMedia("(pointer: coarse)").matches;
 
-    const dotCount = () => (window.innerWidth < 768 ? 30 : 70);
+    const dotCount = () => (window.innerWidth < 768 ? 45 : 110);
 
     const scatter = () => {
-      dots = Array.from({ length: dotCount() }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.22,
-        vy: (Math.random() - 0.5) * 0.22,
-        r: 0.5 + Math.random() * 0.75,
-        c: Math.floor(Math.random() * CONST_COLORS.length),
-      }));
+      dots = Array.from({ length: dotCount() }, (_, i) => {
+        const hub = i % 6 === 0;
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() * 0.26 + 0.06) * (Math.random() < 0.5 ? -1 : 1),
+          vy: (Math.random() * 0.26 + 0.06) * (Math.random() < 0.5 ? -1 : 1),
+          r: hub ? 4 : 2 + Math.random(),
+          hub,
+          c: Math.floor(Math.random() * CONST_COLORS.length),
+        };
+      });
     };
 
     const render = () => {
