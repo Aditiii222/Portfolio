@@ -299,29 +299,30 @@ function Constellation() {
     );
     io.observe(wrap);
 
-    host.addEventListener("mousemove", onMove);
-    host.addEventListener("mouseleave", onLeave);
+    window.addEventListener("mousemove", onMove);
 
     return () => {
       stop();
       ro.disconnect();
       io.disconnect();
-      host.removeEventListener("mousemove", onMove);
-      host.removeEventListener("mouseleave", onLeave);
+      window.removeEventListener("mousemove", onMove);
     };
   }, []);
 
   return (
-    <div ref={wrapRef} className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div
+      ref={wrapRef}
+      className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 overflow-hidden"
+    >
       <canvas
         ref={canvasRef}
         aria-hidden
         className="pointer-events-none absolute inset-0 h-full w-full"
         style={{
           maskImage:
-            "radial-gradient(ellipse 100% 100% at 50% 50%, black 55%, transparent 98%)",
+            "linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%)",
           WebkitMaskImage:
-            "radial-gradient(ellipse 100% 100% at 50% 50%, black 55%, transparent 98%)",
+            "linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%)",
         }}
       />
     </div>
