@@ -89,14 +89,21 @@ function Constellation() {
     let h = 0;
     let canAttract = !window.matchMedia("(pointer: coarse)").matches;
 
-    const dotCount = () => (window.innerWidth < 768 ? 45 : 110);
+    // One dot per grid cell (~14,000 px² desktop, sparser on mobile),
+    // placed at a random offset inside its cell for even, non-clustered spread.
+    const cellSize = () => (window.innerWidth < 768 ? 160 : 118);
 
     const scatter = () => {
-      dots = Array.from({ length: dotCount() }, (_, i) => {
+      const c = cellSize();
+      const cols = Math.max(1, Math.ceil(w / c));
+      const rows = Math.max(1, Math.ceil(h / c));
+      dots = Array.from({ length: cols * rows }, (_, i) => {
+        const gx = i % cols;
+        const gy = Math.floor(i / cols);
         const hub = i % 6 === 0;
         return {
-          x: Math.random() * w,
-          y: Math.random() * h,
+          x: Math.min((gx + Math.random()) * c, w),
+          y: Math.min((gy + Math.random()) * c, h),
           vx: (Math.random() * 0.26 + 0.06) * (Math.random() < 0.5 ? -1 : 1),
           vy: (Math.random() * 0.26 + 0.06) * (Math.random() < 0.5 ? -1 : 1),
           r: hub ? 4 : 2 + Math.random(),
@@ -260,17 +267,19 @@ function Constellation() {
       if (reduced) render(); // static frame only
     };
 
-    // Track the cursor on the whole section (the canvas wrapper sits behind
-    // everything, so moves anywhere — including over the chat card — bubble up).
-    const host = wrap.parentElement ?? wrap;
+    // Track the cursor across the whole canvas (which spans the full viewport
+    // width, wider than the section). Deactivate when it leaves the canvas.
     const onMove = (e: MouseEvent) => {
       const rect = wrap.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (x < 0 || x > rect.width || y < 0 || y > rect.height) {
+        mouse.active = false;
+        return;
+      }
+      mouse.x = x;
+      mouse.y = y;
       mouse.active = true;
-    };
-    const onLeave = () => {
-      mouse.active = false;
     };
 
     resize();
