@@ -547,8 +547,12 @@ export function About() {
       <Reveal delay={100} className="relative z-10">
         {/* Chat card — centred single column */}
         <div
-          className="glass mx-auto w-full max-w-[640px] overflow-hidden rounded-3xl"
-          style={{ boxShadow: "var(--glow-violet)" }}
+          className="mx-auto w-full max-w-[640px] overflow-hidden rounded-3xl"
+          style={{
+            background: "#000",
+            border: "1px solid color-mix(in oklab, var(--primary) 30%, transparent)",
+            boxShadow: "var(--glow-violet)",
+          }}
         >
           {/* Top bar */}
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
