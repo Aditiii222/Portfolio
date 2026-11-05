@@ -1,52 +1,105 @@
-import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Reveal, SectionHeading } from "./Reveal";
 
-type Group = {
+type DeckId = "core" | "web" | "next";
+type SkillCard = { title: string; body: string };
+type Deck = {
+  id: DeckId;
   title: string;
-  status: string;
-  accent: string;
-  items: { name: string; note: string }[];
+  badge: string;
+  color: string;
+  dashed?: boolean;
+  cards: SkillCard[];
 };
 
-const groups: Group[] = [
+const decks: Deck[] = [
   {
-    title: "Current foundation",
-    status: "Comfortable with basics",
-    accent: "var(--cyan)",
-    items: [
-      { name: "Python", note: "Core language for my AI/ML work" },
-      { name: "Machine Learning fundamentals", note: "Core concepts and workflows" },
-      { name: "GitHub", note: "Version control and collaboration" },
+    id: "core",
+    title: "Core skills",
+    badge: "Hands-on",
+    color: "#22D3EE",
+    cards: [
+      { title: "Python", body: "Pandas, scikit-learn, Matplotlib, Seaborn" },
+      { title: "Machine learning", body: "Classification, TF-IDF, model evaluation" },
+      { title: "Data and version control", body: "SQL, Git and GitHub" },
+      { title: "Java and C/C++", body: "Programming fundamentals" },
     ],
   },
   {
-    title: "Currently strengthening",
-    status: "Active practice",
-    accent: "var(--violet)",
-    items: [
-      { name: "Python", note: "Deeper, project-driven practice" },
-      { name: "Machine Learning", note: "Supervised learning workflows" },
-      { name: "Data preprocessing", note: "Cleaning and preparing datasets" },
-      { name: "Model development", note: "Training and tuning models" },
-      { name: "Model evaluation", note: "Metrics and validation" },
-      { name: "Practical AI applications", note: "Turning models into usable tools" },
+    id: "web",
+    title: "Web and tools",
+    badge: "Used in projects",
+    color: "#3B82F6",
+    cards: [
+      { title: "HTML, CSS, JavaScript", body: "Used in coursework and projects" },
+      { title: "Firebase and Google Maps API", body: "Used in projects" },
     ],
   },
   {
-    title: "Web / technical exposure",
-    status: "Used in coursework & projects",
-    accent: "var(--primary)",
-    items: [
-      { name: "HTML", note: "Structure for web projects" },
-      { name: "CSS", note: "Styling and layout basics" },
-      { name: "JavaScript", note: "Interactivity on the web" },
-      { name: "Firebase", note: "Hosting and app data" },
-      { name: "Google Maps API", note: "Map integration in a live project" },
+    id: "next",
+    title: "What comes next",
+    badge: "In progress",
+    color: "#8B5CF6",
+    dashed: true,
+    cards: [
+      { title: "Machine Learning Specialization", body: "Andrew Ng, Coursera" },
+      { title: "Kaggle", body: "Courses and competitions" },
+      { title: "Retrieval-Augmented Generation", body: "My seminar topic" },
+      { title: "Data structures and algorithms", body: "In progress" },
     ],
   },
 ];
 
 export function Skills() {
+  const [activeDeck, setActiveDeck] = useState<DeckId | null>(null);
+  const [cardIndex, setCardIndex] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setReducedMotion(mediaQuery.matches);
+    updatePreference();
+    mediaQuery.addEventListener("change", updatePreference);
+    return () => mediaQuery.removeEventListener("change", updatePreference);
+  }, []);
+
+  const active = decks.find((deck) => deck.id === activeDeck) ?? null;
+  const currentCard = active?.cards[cardIndex] ?? null;
+
+  const openDeck = (deck: Deck) => {
+    if (deck.id === activeDeck && !finished && active) {
+      advanceCard();
+      return;
+    }
+    setActiveDeck(deck.id);
+    setCardIndex(0);
+    setFinished(false);
+  };
+
+  function advanceCard() {
+    if (!active) return;
+    if (cardIndex >= active.cards.length - 1) {
+      setFinished(true);
+      return;
+    }
+    setCardIndex((index) => index + 1);
+  }
+
+  const openNextDeck = () => {
+    if (!active) return;
+    const deckIndex = decks.findIndex((deck) => deck.id === active.id);
+    const nextDeck = decks[(deckIndex + 1) % decks.length];
+    if (nextDeck) openDeck(nextDeck);
+  };
+
+  const startDeckOver = () => {
+    setCardIndex(0);
+    setFinished(false);
+  };
+
   return (
     <section id="skills" className="relative scroll-mt-24 py-28">
       <div className="pointer-events-none absolute inset-x-0 top-1/3 -z-10 h-72 bg-primary/5 blur-[120px]" />
@@ -57,58 +110,211 @@ export function Skills() {
           title="Where I Stand. What Comes Next."
         />
 
-        <div className="grid gap-5 md:grid-cols-2">
-          {groups.map((g, gi) => (
-            <Reveal
-              key={g.title}
-              delay={gi * 90}
-              className={
-                gi === 1
-                  ? "md:col-span-2 md:col-start-1 md:row-start-2 md:flex md:justify-center"
-                  : gi === 2
-                    ? "md:col-start-2 md:row-start-1"
-                    : "md:col-start-1 md:row-start-1"
-              }
-            >
-              <div className={cn("glass lift h-full rounded-3xl p-6", gi === 1 && "md:w-1/2")}>
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-xl font-medium">{g.title}</h3>
-                  <span
-                    className="mono-label rounded-full px-3 py-1 text-[0.62rem] ring-1"
-                    style={{
-                      color: g.accent,
-                      borderColor: "transparent",
-                      background: `color-mix(in oklab, ${g.accent} 12%, transparent)`,
-                    }}
-                  >
-                    {g.status}
-                  </span>
+        <Reveal>
+          <div
+            aria-live="polite"
+            aria-atomic="false"
+            className="flex min-h-[220px] items-center justify-center py-5 sm:min-h-[240px]"
+          >
+            {!active ? (
+              <p className="text-sm text-muted-foreground">Tap a deck to draw a card</p>
+            ) : finished ? (
+              <div key={`${active.id}-finished`} className="skills-stage-fade text-center">
+                <p className="text-lg font-medium">That&apos;s the {active.title} deck.</p>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  <Button variant="outline" onClick={startDeckOver}>
+                    Draw again
+                  </Button>
+                  <Button onClick={openNextDeck}>Next deck</Button>
                 </div>
-
-                <ul className="mt-5 space-y-2">
-                  {g.items.map((it) => (
-                    <li
-                      key={it.name}
-                      className="group cursor-default rounded-xl border border-transparent px-3 py-2.5 transition-all duration-300 hover:border-border hover:bg-foreground/[0.04]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="size-1.5 shrink-0 rounded-full transition-transform duration-300 group-hover:scale-150"
-                          style={{ background: g.accent }}
-                        />
-                        <span className="text-sm font-medium">{it.name}</span>
-                      </div>
-                      <p className="max-h-0 overflow-hidden pl-[1.1rem] text-xs text-muted-foreground opacity-0 transition-all duration-300 group-hover:max-h-12 group-hover:pt-1.5 group-hover:opacity-100">
-                        {it.note}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
               </div>
-            </Reveal>
-          ))}
-        </div>
+            ) : currentCard ? (
+              <div
+                key={`${active.id}-${cardIndex}`}
+                className="skills-stage-fade w-full max-w-[460px]"
+                style={{ "--deck-color": active.color } as React.CSSProperties}
+              >
+                <button
+                  type="button"
+                  className={`skills-active-card w-full text-left ${active.dashed ? "skills-dashed" : ""}`}
+                  aria-label={`${currentCard.title}, card ${cardIndex + 1} of ${active.cards.length}. Advance to the next card.`}
+                  onClick={advanceCard}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      advanceCard();
+                    }
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="skills-badge">{active.badge}</span>
+                    <span className="mono-label !text-[0.62rem]">
+                      {cardIndex + 1} of {active.cards.length}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-2xl font-medium">{currentCard.title}</h3>
+                  <p className="mt-2 text-[17px] leading-relaxed text-muted-foreground">
+                    {currentCard.body}
+                  </p>
+                  {reducedMotion === false && (
+                    <div className="skills-progress-track mt-6" aria-hidden="true">
+                      <div className="skills-progress-line" onAnimationEnd={advanceCard} />
+                    </div>
+                  )}
+                </button>
+                {reducedMotion && (
+                  <Button className="mt-3 w-full" onClick={advanceCard}>
+                    Next
+                  </Button>
+                )}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-6">
+            {decks.map((deck) => {
+              const isActive = deck.id === activeDeck && !finished;
+              const isDimmed = activeDeck !== null && !finished && !isActive;
+              return (
+                <Button
+                  key={deck.id}
+                  variant="ghost"
+                  type="button"
+                  aria-label={`Open ${deck.title} deck, ${deck.cards.length} cards`}
+                  aria-pressed={isActive}
+                  onClick={() => openDeck(deck)}
+                  className={`skills-deck relative h-[142px] w-full whitespace-normal px-2 py-3 text-left sm:h-[150px] sm:w-[220px] sm:max-w-full sm:px-4 sm:py-4 ${deck.dashed ? "skills-dashed" : ""}`}
+                  style={{
+                    "--deck-color": deck.color,
+                    opacity: isDimmed ? 0.5 : 1,
+                    borderColor: isActive ? deck.color : undefined,
+                  } as React.CSSProperties}
+                >
+                  <span className="skills-stack skills-stack-back" aria-hidden="true" />
+                  <span className="skills-stack skills-stack-mid" aria-hidden="true" />
+                  <span className="skills-deck-front">
+                    <span className="skills-deck-title">{deck.title}</span>
+                    <span className="skills-deck-count">
+                      {deck.cards.length} {deck.cards.length === 1 ? "card" : "cards"}
+                    </span>
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 text-center">
+            <Button
+              variant="link"
+              className="h-auto p-1 text-sm text-muted-foreground hover:text-foreground"
+              aria-expanded={showAll}
+              onClick={() => setShowAll((visible) => !visible)}
+            >
+              See all skills
+            </Button>
+          </div>
+
+          {showAll && (
+            <div className="mt-8 grid gap-8 border-t border-border pt-7 md:grid-cols-3">
+              {decks.map((deck) => (
+                <div key={deck.id}>
+                  <h3 className="text-lg font-medium" style={{ color: deck.color }}>
+                    {deck.title}
+                  </h3>
+                  <ul className="mt-4 space-y-4">
+                    {deck.cards.map((card) => (
+                      <li key={card.title}>
+                        <p className="text-sm font-medium">{card.title}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{card.body}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </Reveal>
       </div>
+
+      <style>{`
+        .skills-deck {
+          overflow: visible;
+          isolation: isolate;
+          border: 1px solid color-mix(in oklab, var(--deck-color) 48%, var(--border));
+          border-radius: 16px;
+          background: color-mix(in oklab, var(--card) 88%, var(--background));
+          transition: opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+        }
+        .skills-deck:hover, .skills-deck[aria-pressed="true"] {
+          box-shadow: 0 0 24px color-mix(in oklab, var(--deck-color) 22%, transparent);
+          transform: translateY(-2px);
+        }
+        .skills-dashed { border-style: dashed !important; }
+        .skills-stack {
+          position: absolute;
+          z-index: -1;
+          inset: 0;
+          border: 1px solid color-mix(in oklab, var(--deck-color) 38%, var(--border));
+          border-radius: 16px;
+          background: color-mix(in oklab, var(--card) 82%, var(--background));
+          pointer-events: none;
+        }
+        .skills-stack-back { transform: translate(5px, 6px); opacity: 0.52; }
+        .skills-stack-mid { transform: translate(2px, 3px); opacity: 0.76; }
+        .skills-deck-front {
+          position: relative;
+          display: flex;
+          width: 100%;
+          height: 100%;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 8px;
+          border: 1px solid color-mix(in oklab, var(--deck-color) 38%, var(--border));
+          border-radius: 14px;
+          padding: 10px;
+          background: color-mix(in oklab, var(--card) 92%, var(--background));
+        }
+        .skills-deck-title { font-size: 14px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+        .skills-deck-count { font-family: var(--font-mono); font-size: 0.59rem; color: var(--muted-foreground); }
+        .skills-active-card {
+          display: block;
+          min-height: 205px;
+          border: 1px solid var(--deck-color);
+          border-radius: 16px;
+          padding: 24px;
+          background: color-mix(in oklab, var(--card) 95%, var(--background));
+          box-shadow: 0 0 32px color-mix(in oklab, var(--deck-color) 13%, transparent);
+          cursor: pointer;
+        }
+        .skills-active-card:focus-visible { outline: 2px solid var(--deck-color); outline-offset: 4px; }
+        .skills-badge {
+          border-radius: 999px;
+          padding: 5px 10px;
+          background: color-mix(in oklab, var(--deck-color) 15%, transparent);
+          color: var(--deck-color);
+          font-family: var(--font-mono);
+          font-size: 0.62rem;
+        }
+        .skills-progress-track { height: 3px; overflow: hidden; border-radius: 999px; background: color-mix(in oklab, var(--deck-color) 18%, transparent); }
+        .skills-progress-line { height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; background: var(--deck-color); animation: skills-card-progress 3s linear forwards; }
+        .skills-stage-fade { animation: skills-stage-in 200ms ease both; }
+        @keyframes skills-card-progress { to { transform: scaleX(1); } }
+        @keyframes skills-stage-in { from { opacity: 0; } to { opacity: 1; } }
+        @media (hover: hover) and (pointer: fine) {
+          .skills-active-card:hover .skills-progress-line { animation-play-state: paused; }
+        }
+        @media (min-width: 640px) {
+          .skills-deck-title { font-size: 20px; }
+          .skills-deck-count { font-size: 0.65rem; }
+          .skills-deck-front { padding: 16px; }
+          .skills-active-card { min-height: 220px; padding: 28px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .skills-progress-track { display: none; }
+          .skills-stage-fade, .skills-deck { animation: none; transition: none; }
+        }
+      `}</style>
     </section>
   );
 }
