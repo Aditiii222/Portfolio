@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Reveal, SectionHeading } from "./Reveal";
 
 type DeckId = "core" | "web" | "next";
 type SkillCard = { title: string; body: string };
+type LeavingCard = { deck: Deck; card: SkillCard; index: number };
 type Deck = {
   id: DeckId;
   title: string;
@@ -58,6 +59,10 @@ export function Skills() {
   const [finished, setFinished] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [reducedMotion, setReducedMotion] = useState<boolean | null>(null);
+  const [cardPhase, setCardPhase] = useState<"idle" | "enter" | "exit">("idle");
+  const [leavingCard, setLeavingCard] = useState<LeavingCard | null>(null);
+  const transitioning = useRef(false);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -70,23 +75,62 @@ export function Skills() {
   const active = decks.find((deck) => deck.id === activeDeck) ?? null;
   const currentCard = active?.cards[cardIndex] ?? null;
 
+  const clearTimers = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+  };
+
+  useEffect(() => () => clearTimers(), []);
+
   const openDeck = (deck: Deck) => {
     if (deck.id === activeDeck && !finished && active) {
+      if (transitioning.current) return;
       advanceCard();
       return;
     }
+    clearTimers();
+    transitioning.current = false;
+    setLeavingCard(null);
     setActiveDeck(deck.id);
     setCardIndex(0);
     setFinished(false);
+    setCardPhase("enter");
   };
 
   function advanceCard() {
-    if (!active) return;
-    if (cardIndex >= active.cards.length - 1) {
-      setFinished(true);
+    if (!active || transitioning.current) return;
+    if (reducedMotion) {
+      if (cardIndex >= active.cards.length - 1) {
+        setFinished(true);
+      } else {
+        setCardIndex((index) => index + 1);
+      }
+      setCardPhase("idle");
       return;
     }
-    setCardIndex((index) => index + 1);
+
+    transitioning.current = true;
+    setCardPhase("exit");
+    if (cardIndex >= active.cards.length - 1) {
+      timers.current.push(setTimeout(() => {
+        setFinished(true);
+        setCardPhase("idle");
+        transitioning.current = false;
+      }, 700));
+      return;
+    }
+
+    const leaving = { deck: active, card: active.cards[cardIndex], index: cardIndex };
+    timers.current.push(setTimeout(() => {
+      setLeavingCard(leaving);
+      setCardIndex((index) => index + 1);
+      setCardPhase("enter");
+      timers.current.push(setTimeout(() => {
+        setLeavingCard(null);
+        setCardPhase("idle");
+        transitioning.current = false;
+      }, 400));
+    }, 300));
   }
 
   const openNextDeck = () => {
@@ -97,9 +141,56 @@ export function Skills() {
   };
 
   const startDeckOver = () => {
+    clearTimers();
+    transitioning.current = false;
+    setLeavingCard(null);
     setCardIndex(0);
     setFinished(false);
+    setCardPhase("enter");
   };
+
+  const renderCard = (
+    deck: Deck,
+    card: SkillCard,
+    index: number,
+    phase: "idle" | "enter" | "exit" | "exit-continued",
+    interactive: boolean,
+  ) => (
+    <div
+      key={`${deck.id}-${index}-${phase}`}
+      className={`skills-card-layer ${phase === "enter" ? "skills-card-enter" : ""} ${phase.startsWith("exit") ? "skills-card-exit" : ""} ${phase === "exit-continued" ? "skills-card-exit-continued" : ""}`}
+      style={{ "--deck-color": deck.color } as CSSProperties}
+      aria-hidden={!interactive || undefined}
+    >
+      <button
+        type="button"
+        className={`skills-active-card w-full text-left ${deck.dashed ? "skills-dashed" : ""}`}
+        aria-label={interactive ? `${card.title}, card ${index + 1} of ${deck.cards.length}. Advance to the next card.` : undefined}
+        tabIndex={interactive ? undefined : -1}
+        onClick={interactive ? advanceCard : undefined}
+        disabled={!interactive}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <span className="skills-badge">{deck.badge}</span>
+          <span className="mono-label !text-[0.62rem]">
+            {index + 1} of {deck.cards.length}
+          </span>
+        </div>
+        <h3 className="mt-5 text-2xl font-medium">{card.title}</h3>
+        <p className="mt-2 text-[17px] leading-relaxed text-muted-foreground">{card.body}</p>
+        {interactive && reducedMotion === false && (
+          <div className="skills-progress-track mt-6" aria-hidden="true">
+            <div className="skills-progress-line" onAnimationEnd={advanceCard} />
+          </div>
+        )}
+      </button>
+      {interactive && reducedMotion && (
+        <Button className="mt-3 w-full" onClick={advanceCard}>
+          Next
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <section id="skills" className="relative scroll-mt-24 py-28">
@@ -115,7 +206,7 @@ export function Skills() {
           <div
             aria-live="polite"
             aria-atomic="false"
-            className="flex min-h-[220px] items-center justify-center py-5 sm:min-h-[240px]"
+            className="skills-stage relative flex min-h-[220px] items-center justify-center py-5 sm:min-h-[240px]"
           >
             {!active ? (
               <p className="text-sm text-muted-foreground">Tap a deck to draw a card</p>
@@ -130,39 +221,10 @@ export function Skills() {
                 </div>
               </div>
             ) : currentCard ? (
-              <div
-                key={`${active.id}-${cardIndex}`}
-                className="skills-stage-fade w-full max-w-[460px]"
-                style={{ "--deck-color": active.color } as CSSProperties}
-              >
-                <button
-                  type="button"
-                  className={`skills-active-card w-full text-left ${active.dashed ? "skills-dashed" : ""}`}
-                  aria-label={`${currentCard.title}, card ${cardIndex + 1} of ${active.cards.length}. Advance to the next card.`}
-                  onClick={advanceCard}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="skills-badge">{active.badge}</span>
-                    <span className="mono-label !text-[0.62rem]">
-                      {cardIndex + 1} of {active.cards.length}
-                    </span>
-                  </div>
-                  <h3 className="mt-5 text-2xl font-medium">{currentCard.title}</h3>
-                  <p className="mt-2 text-[17px] leading-relaxed text-muted-foreground">
-                    {currentCard.body}
-                  </p>
-                  {reducedMotion === false && (
-                    <div className="skills-progress-track mt-6" aria-hidden="true">
-                      <div className="skills-progress-line" onAnimationEnd={advanceCard} />
-                    </div>
-                  )}
-                </button>
-                {reducedMotion && (
-                  <Button className="mt-3 w-full" onClick={advanceCard}>
-                    Next
-                  </Button>
-                )}
-              </div>
+              <>
+                {leavingCard && renderCard(leavingCard.deck, leavingCard.card, leavingCard.index, "exit-continued", false)}
+                {renderCard(active, currentCard, cardIndex, cardPhase, true)}
+              </>
             ) : null}
           </div>
 
@@ -178,6 +240,18 @@ export function Skills() {
                   aria-label={`Open ${deck.title} deck, ${deck.cards.length} cards`}
                   aria-pressed={isActive}
                   onClick={() => openDeck(deck)}
+                  onPointerMove={(event) => {
+                    if (event.pointerType !== "mouse") return;
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+                    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+                    event.currentTarget.style.setProperty("--tilt-x", `${x * 8}deg`);
+                    event.currentTarget.style.setProperty("--tilt-y", `${y * -8}deg`);
+                  }}
+                  onPointerLeave={(event) => {
+                    event.currentTarget.style.setProperty("--tilt-x", "0deg");
+                    event.currentTarget.style.setProperty("--tilt-y", "0deg");
+                  }}
                   className={`skills-deck relative h-[142px] w-full whitespace-normal px-2 py-3 text-left sm:h-[150px] sm:w-[220px] sm:max-w-full sm:px-4 sm:py-4 ${deck.dashed ? "skills-dashed" : ""}`}
                   style={{
                     "--deck-color": deck.color,
@@ -238,11 +312,14 @@ export function Skills() {
           border: 1px solid color-mix(in oklab, var(--deck-color) 48%, var(--border));
           border-radius: 16px;
           background: color-mix(in oklab, var(--card) 88%, var(--background));
-          transition: opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+          transition: opacity 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
         }
         .skills-deck:hover, .skills-deck[aria-pressed="true"] {
-          box-shadow: 0 0 24px color-mix(in oklab, var(--deck-color) 22%, transparent);
-          transform: translateY(-2px);
+          box-shadow: 0 0 26px color-mix(in oklab, var(--deck-color) 35%, transparent);
+          transform: perspective(700px) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg)) translateY(-6px);
+        }
+        .skills-deck[aria-pressed="true"] {
+          animation: skills-deck-pulse 3s ease-in-out infinite;
         }
         .skills-dashed { border-style: dashed !important; }
         .skills-stack {
@@ -282,6 +359,18 @@ export function Skills() {
           box-shadow: 0 0 32px color-mix(in oklab, var(--deck-color) 13%, transparent);
           cursor: pointer;
         }
+        .skills-card-layer {
+          position: absolute;
+          z-index: 1;
+          top: 50%;
+          left: 50%;
+          width: min(100%, 460px);
+          transform: translate(-50%, -50%);
+        }
+        .skills-card-enter { animation: skills-card-emerge 500ms ease-out both; z-index: 2; }
+        .skills-card-exit { animation: skills-card-dissolve 700ms ease both; pointer-events: none; }
+        .skills-card-exit-continued { animation-delay: -300ms; }
+        .skills-card-layer:has(.skills-active-card:disabled) { pointer-events: none; }
         .skills-active-card:focus-visible { outline: 2px solid var(--deck-color); outline-offset: 4px; }
         .skills-badge {
           border-radius: 999px;
@@ -292,9 +381,20 @@ export function Skills() {
           font-size: 0.62rem;
         }
         .skills-progress-track { height: 3px; overflow: hidden; border-radius: 999px; background: color-mix(in oklab, var(--deck-color) 18%, transparent); }
-        .skills-progress-line { height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; background: var(--deck-color); animation: skills-card-progress 3s linear forwards; }
+        .skills-progress-line { height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; background: var(--deck-color); animation: skills-card-progress 3s linear 500ms forwards; }
         .skills-stage-fade { animation: skills-stage-in 200ms ease both; }
         @keyframes skills-card-progress { to { transform: scaleX(1); } }
+        @keyframes skills-card-emerge {
+          from { opacity: 0; transform: translate(-50%, calc(-50% + 70px)) scale(0.9); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes skills-card-dissolve {
+          to { opacity: 0; filter: blur(10px); transform: translate(-50%, calc(-50% - 24px)) scale(1.04); }
+        }
+        @keyframes skills-deck-pulse {
+          0%, 100% { box-shadow: 0 0 18px color-mix(in oklab, var(--deck-color) 24%, transparent); }
+          50% { box-shadow: 0 0 32px color-mix(in oklab, var(--deck-color) 42%, transparent); }
+        }
         @keyframes skills-stage-in { from { opacity: 0; } to { opacity: 1; } }
         @media (hover: hover) and (pointer: fine) {
           .skills-active-card:hover .skills-progress-line { animation-play-state: paused; }
@@ -307,7 +407,8 @@ export function Skills() {
         }
         @media (prefers-reduced-motion: reduce) {
           .skills-progress-track { display: none; }
-          .skills-stage-fade, .skills-deck { animation: none; transition: none; }
+          .skills-stage-fade, .skills-deck, .skills-card-enter, .skills-card-exit { animation: none !important; transition: none !important; }
+          .skills-card-layer { opacity: 1; filter: none; transform: translate(-50%, -50%); }
         }
       `}</style>
     </section>
