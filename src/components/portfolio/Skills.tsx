@@ -137,9 +137,11 @@ export function Skills() {
       setCardPhase("enter");
       timers.current.push(setTimeout(() => {
         setLeavingCard(null);
+      }, 400));
+      timers.current.push(setTimeout(() => {
         setCardPhase("idle");
         transitioning.current = false;
-      }, 400));
+      }, 500));
     }, 300));
   }
 
