@@ -125,7 +125,12 @@ export function Skills() {
       return;
     }
 
-    const leaving = { deck: active, card: active.cards[cardIndex], index: cardIndex };
+    const cardToLeave = active.cards[cardIndex];
+    if (!cardToLeave) {
+      transitioning.current = false;
+      return;
+    }
+    const leaving = { deck: active, card: cardToLeave, index: cardIndex };
     timers.current.push(setTimeout(() => {
       setLeavingCard(leaving);
       setCardIndex((index) => index + 1);
