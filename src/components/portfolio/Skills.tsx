@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { Reveal, SectionHeading } from "./Reveal";
 
@@ -132,19 +133,13 @@ export function Skills() {
               <div
                 key={`${active.id}-${cardIndex}`}
                 className="skills-stage-fade w-full max-w-[460px]"
-                style={{ "--deck-color": active.color } as React.CSSProperties}
+                style={{ "--deck-color": active.color } as CSSProperties}
               >
                 <button
                   type="button"
                   className={`skills-active-card w-full text-left ${active.dashed ? "skills-dashed" : ""}`}
                   aria-label={`${currentCard.title}, card ${cardIndex + 1} of ${active.cards.length}. Advance to the next card.`}
                   onClick={advanceCard}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      advanceCard();
-                    }
-                  }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="skills-badge">{active.badge}</span>
@@ -188,7 +183,7 @@ export function Skills() {
                     "--deck-color": deck.color,
                     opacity: isDimmed ? 0.5 : 1,
                     borderColor: isActive ? deck.color : undefined,
-                  } as React.CSSProperties}
+                  } as CSSProperties}
                 >
                   <span className="skills-stack skills-stack-back" aria-hidden="true" />
                   <span className="skills-stack skills-stack-mid" aria-hidden="true" />
