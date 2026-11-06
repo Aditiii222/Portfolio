@@ -80,7 +80,12 @@ export function Skills() {
     timers.current = [];
   };
 
-  useEffect(() => () => clearTimers(), []);
+  useEffect(() => {
+    return () => {
+      timers.current.forEach(clearTimeout);
+      timers.current = [];
+    };
+  }, []);
 
   const openDeck = (deck: Deck) => {
     if (deck.id === activeDeck && !finished && active) {
@@ -409,6 +414,7 @@ export function Skills() {
           .skills-progress-track { display: none; }
           .skills-stage-fade, .skills-deck, .skills-card-enter, .skills-card-exit { animation: none !important; transition: none !important; }
           .skills-card-layer { opacity: 1; filter: none; transform: translate(-50%, -50%); }
+          .skills-deck:hover, .skills-deck[aria-pressed="true"] { box-shadow: none; transform: none; animation: none; }
         }
       `}</style>
     </section>
