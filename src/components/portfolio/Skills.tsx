@@ -79,8 +79,6 @@ function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
     let visible = true;
     let reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-    let pointerX = 0;
-    let pointerY = 0;
     let targetParallaxX = 0;
     let targetParallaxY = 0;
     let parallaxX = 0;
@@ -229,8 +227,6 @@ function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
         targetParallaxY = 0;
         return;
       }
-      pointerX = x;
-      pointerY = y;
       targetParallaxX = -((x / Math.max(1, width)) * 2 - 1) * 12;
       targetParallaxY = -((y / Math.max(1, height)) * 2 - 1) * 12;
     };
@@ -484,7 +480,8 @@ export function Skills() {
   return (
     <section id="skills" className="relative scroll-mt-24 py-28">
       <div className="pointer-events-none absolute inset-x-0 top-1/3 -z-10 h-72 bg-primary/5 blur-[120px]" />
-      <div className="mx-auto max-w-6xl px-5">
+      <SkillsStardust activeDeck={activeDeck} />
+      <div className="relative z-10 mx-auto max-w-6xl px-5">
         <SectionHeading
           index="02"
           kicker="Skills & tech stack"
@@ -595,6 +592,15 @@ export function Skills() {
       </div>
 
       <style>{`
+        .skills-stardust {
+          position: absolute;
+          z-index: 0;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          mask-image: linear-gradient(to bottom, transparent 0%, black 13%, black 87%, transparent 100%);
+        }
         .skills-deck {
           overflow: visible;
           isolation: isolate;
