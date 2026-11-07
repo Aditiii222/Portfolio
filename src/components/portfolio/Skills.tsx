@@ -40,9 +40,13 @@ const deckDustColors: Record<DeckId, string> = {
 function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeDeckRef = useRef(activeDeck);
+  const renderStaticFrame = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     activeDeckRef.current = activeDeck;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      renderStaticFrame.current?.();
+    }
   }, [activeDeck]);
 
   useEffect(() => {
@@ -216,6 +220,7 @@ function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
 
       if (animate && visible && !reducedMotion) frame = window.requestAnimationFrame((nextTime) => draw(nextTime, true));
     };
+    renderStaticFrame.current = () => draw(performance.now(), false);
 
     const handlePointerMove = (event: PointerEvent) => {
       if (coarsePointer || event.pointerType === "touch") return;
@@ -242,6 +247,7 @@ function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
         window.cancelAnimationFrame(frame);
         draw(performance.now(), false);
       } else if (visible) {
+        window.cancelAnimationFrame(frame);
         lastTime = 0;
         frame = window.requestAnimationFrame((time) => draw(time, true));
       }
@@ -250,6 +256,7 @@ function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
     const observer = new IntersectionObserver(([entry]) => {
       visible = Boolean(entry?.isIntersecting);
       if (visible && !reducedMotion) {
+        window.cancelAnimationFrame(frame);
         lastTime = 0;
         frame = window.requestAnimationFrame((time) => draw(time, true));
       } else {
@@ -272,10 +279,10 @@ function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
     section.addEventListener("pointermove", handlePointerMove);
     section.addEventListener("pointerleave", handlePointerLeave);
     resize();
-    if (!reducedMotion && visible) frame = window.requestAnimationFrame((time) => draw(time, true));
 
     return () => {
       window.cancelAnimationFrame(frame);
+      renderStaticFrame.current = null;
       observer.disconnect();
       resizeObserver.disconnect();
       reducedQuery.removeEventListener("change", handleReducedMotion);
