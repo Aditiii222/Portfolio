@@ -30,7 +30,7 @@ type DustParticle = {
   reacts: boolean;
 };
 
-const dustColors = ["#22D3EE", "#3B82F6", "#8B5CF6", "#EAFBFF"];
+const dustColors = ["#22D3EE", "#3B82F6", "#8B5CF6", "#EAFBFF"] as const;
 const deckDustColors: Record<DeckId, string> = {
   core: "#22D3EE",
   web: "#3B82F6",
