@@ -15,6 +15,283 @@ type Deck = {
   cards: SkillCard[];
 };
 
+type DustParticle = {
+  x: number;
+  y: number;
+  radius: number;
+  alphaMin: number;
+  alphaMax: number;
+  speed: number;
+  wobble: number;
+  phase: number;
+  period: number;
+  color: string;
+  layer: "far" | "mid" | "near";
+  reacts: boolean;
+};
+
+const dustColors = ["#22D3EE", "#3B82F6", "#8B5CF6", "#EAFBFF"];
+const deckDustColors: Record<DeckId, string> = {
+  core: "#22D3EE",
+  web: "#3B82F6",
+  next: "#8B5CF6",
+};
+
+function SkillsStardust({ activeDeck }: { activeDeck: DeckId | null }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const activeDeckRef = useRef(activeDeck);
+
+  useEffect(() => {
+    activeDeckRef.current = activeDeck;
+  }, [activeDeck]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const section = canvas?.parentElement;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !section || !context) return;
+
+    const palette = [...dustColors, ...Object.values(deckDustColors)];
+    const sprites = new Map<string, HTMLCanvasElement>();
+    for (const color of palette) {
+      const sprite = document.createElement("canvas");
+      sprite.width = 64;
+      sprite.height = 64;
+      const spriteContext = sprite.getContext("2d");
+      if (!spriteContext) continue;
+      const glow = spriteContext.createRadialGradient(32, 32, 0, 32, 32, 32);
+      glow.addColorStop(0, color);
+      glow.addColorStop(0.14, `${color}b8`);
+      glow.addColorStop(0.42, `${color}36`);
+      glow.addColorStop(1, `${color}00`);
+      spriteContext.fillStyle = glow;
+      spriteContext.fillRect(0, 0, 64, 64);
+      sprites.set(color, sprite);
+    }
+
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+    let particles: DustParticle[] = [];
+    let frame = 0;
+    let lastTime = 0;
+    let elapsed = 0;
+    let visible = true;
+    let reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+    let pointerX = 0;
+    let pointerY = 0;
+    let targetParallaxX = 0;
+    let targetParallaxY = 0;
+    let parallaxX = 0;
+    let parallaxY = 0;
+    let reactionMix = 0;
+    let reactionStart = 0;
+    let reactionFrom = 0;
+    let reactionTarget = 0;
+    let lastDeck = activeDeckRef.current;
+
+    const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
+
+    const createParticles = () => {
+      const mobile = width < 640;
+      const referenceArea = mobile ? 390 * 800 : 1280 * 800;
+      const targetCount = mobile ? 45 : 90;
+      const count = Math.max(18, Math.min(150, Math.round((width * height * targetCount) / referenceArea)));
+      particles = Array.from({ length: count }, (_, index) => {
+        const layerRoll = Math.random();
+        const layer: DustParticle["layer"] = layerRoll < 0.45 ? "far" : layerRoll < 0.8 ? "mid" : "near";
+        let alphaMin = 0.25;
+        let alphaMax = 0.4;
+        let radius = randomBetween(0.5, 0.75);
+        let speed = randomBetween(3, 6);
+        let wobble = randomBetween(2, 5);
+        if (layer === "mid") {
+          alphaMin = 0.4;
+          alphaMax = 0.6;
+          radius = randomBetween(0.75, 1);
+          speed = randomBetween(6, 10);
+          wobble = randomBetween(3, 7);
+        } else if (layer === "near") {
+          alphaMin = 0.6;
+          alphaMax = 0.9;
+          radius = randomBetween(1.25, 1.5);
+          speed = randomBetween(10, 18);
+          wobble = randomBetween(4, 9);
+        }
+        const roll = Math.random();
+        const color = roll < 0.63 ? dustColors[0] : roll < 0.86 ? dustColors[1] : roll < 0.97 ? dustColors[2] : dustColors[3];
+        return {
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius,
+          alphaMin,
+          alphaMax,
+          speed,
+          wobble,
+          phase: Math.random() * Math.PI * 2,
+          period: randomBetween(3, 7),
+          color,
+          layer,
+          reacts: index % 5 < 2,
+        };
+      });
+    };
+
+    const resize = () => {
+      const bounds = section.getBoundingClientRect();
+      width = bounds.width;
+      height = bounds.height;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.round(width * pixelRatio));
+      canvas.height = Math.max(1, Math.round(height * pixelRatio));
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      createParticles();
+      if (reducedMotion) draw(0, false);
+    };
+
+    const draw = (time: number, animate: boolean) => {
+      if (animate && lastTime) {
+        const delta = Math.min((time - lastTime) / 1000, 0.05);
+        elapsed += delta;
+        for (const particle of particles) {
+          particle.y -= particle.speed * delta;
+          particle.x += Math.sin(elapsed * 0.5 + particle.phase) * particle.wobble * delta;
+          if (particle.y < -4) {
+            particle.y = height + 3;
+            particle.x = Math.random() * width;
+          }
+          if (particle.x < -4) particle.x = width + 3;
+          if (particle.x > width + 4) particle.x = -3;
+        }
+        parallaxX += (targetParallaxX - parallaxX) * Math.min(1, delta * 2.5);
+        parallaxY += (targetParallaxY - parallaxY) * Math.min(1, delta * 2.5);
+      }
+      lastTime = time;
+
+      const deck = activeDeckRef.current;
+      if (deck !== lastDeck) {
+        reactionFrom = reactionMix;
+        reactionTarget = deck ? 1 : 0;
+        reactionStart = time;
+        lastDeck = deck;
+      }
+      const progress = reducedMotion ? 1 : Math.min(1, Math.max(0, (time - reactionStart) / 800));
+      const easedProgress = progress * progress * (3 - 2 * progress);
+      reactionMix = reactionFrom + (reactionTarget - reactionFrom) * easedProgress;
+
+      context.clearRect(0, 0, width, height);
+      const reactionColor = deck ? deckDustColors[deck] : null;
+      for (const particle of particles) {
+        const layerScale = particle.layer === "near" ? 1 : particle.layer === "mid" ? 0.66 : 0.38;
+        const layerParallax = particle.layer === "near" ? 1 : particle.layer === "mid" ? 0.62 : 0.3;
+        const twinkle = animate ? (Math.sin((elapsed / particle.period) * Math.PI * 2 + particle.phase) + 1) / 2 : 0.5;
+        const alpha = particle.alphaMin + (particle.alphaMax - particle.alphaMin) * twinkle;
+        const x = particle.x + parallaxX * layerParallax;
+        const y = particle.y + parallaxY * layerParallax;
+        const diameter = particle.radius * 2;
+        const spriteSize = diameter * 5.5;
+        const spriteOffset = spriteSize / 2;
+        const baseSprite = sprites.get(particle.color);
+        const targetSprite = reactionColor ? sprites.get(reactionColor) : undefined;
+        if (particle.reacts && reactionColor && targetSprite) {
+          if (baseSprite && reactionMix < 1) {
+            context.globalAlpha = alpha * (1 - reactionMix);
+            context.drawImage(baseSprite, x - spriteOffset, y - spriteOffset, spriteSize, spriteSize);
+          }
+          context.globalAlpha = alpha * reactionMix;
+          context.drawImage(targetSprite, x - spriteOffset, y - spriteOffset, spriteSize, spriteSize);
+        } else if (baseSprite) {
+          context.globalAlpha = alpha;
+          context.drawImage(baseSprite, x - spriteOffset, y - spriteOffset, spriteSize, spriteSize);
+        }
+        context.globalAlpha = 1;
+        context.fillStyle = particle.reacts && reactionColor && reactionMix > 0.5 ? reactionColor : particle.color;
+        context.globalAlpha = alpha;
+        context.beginPath();
+        context.arc(x, y, Math.max(0.45, diameter * 0.22), 0, Math.PI * 2);
+        context.fill();
+      }
+      context.globalAlpha = 1;
+
+      if (animate && visible && !reducedMotion) frame = window.requestAnimationFrame((nextTime) => draw(nextTime, true));
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (coarsePointer || event.pointerType === "touch") return;
+      const bounds = section.getBoundingClientRect();
+      const x = event.clientX - bounds.left;
+      const y = event.clientY - bounds.top;
+      if (x < 0 || x > width || y < 0 || y > height) {
+        targetParallaxX = 0;
+        targetParallaxY = 0;
+        return;
+      }
+      pointerX = x;
+      pointerY = y;
+      targetParallaxX = -((x / Math.max(1, width)) * 2 - 1) * 12;
+      targetParallaxY = -((y / Math.max(1, height)) * 2 - 1) * 12;
+    };
+
+    const handlePointerLeave = () => {
+      targetParallaxX = 0;
+      targetParallaxY = 0;
+    };
+
+    const handleReducedMotion = (event: MediaQueryListEvent) => {
+      reducedMotion = event.matches;
+      if (reducedMotion) {
+        window.cancelAnimationFrame(frame);
+        draw(performance.now(), false);
+      } else if (visible) {
+        lastTime = 0;
+        frame = window.requestAnimationFrame((time) => draw(time, true));
+      }
+    };
+
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = Boolean(entry?.isIntersecting);
+      if (visible && !reducedMotion) {
+        lastTime = 0;
+        frame = window.requestAnimationFrame((time) => draw(time, true));
+      } else {
+        window.cancelAnimationFrame(frame);
+        if (reducedMotion) draw(performance.now(), false);
+      }
+    });
+    observer.observe(section);
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(section);
+    const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const coarseQuery = window.matchMedia("(pointer: coarse)");
+    const handleCoarsePointer = (event: MediaQueryListEvent) => {
+      coarsePointer = event.matches;
+      if (coarsePointer) handlePointerLeave();
+    };
+    reducedQuery.addEventListener("change", handleReducedMotion);
+    coarseQuery.addEventListener("change", handleCoarsePointer);
+    section.addEventListener("pointermove", handlePointerMove);
+    section.addEventListener("pointerleave", handlePointerLeave);
+    resize();
+    if (!reducedMotion && visible) frame = window.requestAnimationFrame((time) => draw(time, true));
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      resizeObserver.disconnect();
+      reducedQuery.removeEventListener("change", handleReducedMotion);
+      coarseQuery.removeEventListener("change", handleCoarsePointer);
+      section.removeEventListener("pointermove", handlePointerMove);
+      section.removeEventListener("pointerleave", handlePointerLeave);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} aria-hidden="true" className="skills-stardust" />;
+}
+
 const decks: Deck[] = [
   {
     id: "core",
