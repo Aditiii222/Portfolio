@@ -6,6 +6,7 @@ import { Reveal, SectionHeading } from "./Reveal";
 type DeckId = "core" | "web" | "next";
 type SkillCard = { title: string; body: string };
 type LeavingCard = { deck: Deck; card: SkillCard; index: number };
+type SparkleBurst = { id: number; color: string };
 type Deck = {
   id: DeckId;
   title: string;
@@ -341,6 +342,8 @@ export function Skills() {
   const [reducedMotion, setReducedMotion] = useState<boolean | null>(null);
   const [cardPhase, setCardPhase] = useState<"idle" | "enter" | "exit">("idle");
   const [leavingCard, setLeavingCard] = useState<LeavingCard | null>(null);
+  const [sparkleBurst, setSparkleBurst] = useState<SparkleBurst | null>(null);
+  const sparkleSequence = useRef(0);
   const transitioning = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -358,6 +361,11 @@ export function Skills() {
   const clearTimers = () => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
+  };
+
+  const releaseSparkles = (deck: Deck) => {
+    if (reducedMotion) return;
+    setSparkleBurst({ id: ++sparkleSequence.current, color: deck.color });
   };
 
   useEffect(() => {
@@ -398,6 +406,7 @@ export function Skills() {
     setCardPhase("exit");
     if (cardIndex >= active.cards.length - 1) {
       timers.current.push(setTimeout(() => {
+        releaseSparkles(active);
         setFinished(true);
         setCardPhase("idle");
         transitioning.current = false;
@@ -417,6 +426,7 @@ export function Skills() {
       setCardPhase("enter");
       timers.current.push(setTimeout(() => {
         setLeavingCard(null);
+      releaseSparkles(active);
       }, 400));
       timers.current.push(setTimeout(() => {
         setCardPhase("idle");
@@ -515,6 +525,36 @@ export function Skills() {
               </div>
             ) : currentCard ? (
               <>
+                {sparkleBurst && reducedMotion === false && (
+                  <div
+                    key={sparkleBurst.id}
+                    className="skills-sparkle-burst"
+                    style={{ "--sparkle-color": sparkleBurst.color } as CSSProperties}
+                    aria-hidden="true"
+                  >
+                    {Array.from({ length: 12 }, (_, index) => {
+                      const x = [-42, -24, -8, 17, 35, 44, 31, 10, -17, -37, 0, 24][index] ?? 0;
+                      const y = [28, 52, 76, 63, 35, 70, 15, 88, 45, 82, 8, 56][index] ?? 50;
+                      const drift = [-28, 18, -12, 32, -22, 8, 24, -34, 12, 28, -6, -18][index] ?? 0;
+                      const rise = [58, 82, 48, 72, 94, 54, 68, 44, 88, 62, 76, 52][index] ?? 60;
+                      return (
+                        <span
+                          key={index}
+                          className="skills-sparkle"
+                          style={{
+                            "--sparkle-x": `${x}px`,
+                            "--sparkle-y": `${y}%`,
+                            "--sparkle-drift": `${drift}px`,
+                            "--sparkle-rise": `${rise}px`,
+                            "--sparkle-size": index % 3 === 0 ? "3px" : "2px",
+                            "--sparkle-delay": `${index * 12}ms`,
+                          } as CSSProperties}
+                          onAnimationEnd={index === 11 ? () => setSparkleBurst((burst) => burst?.id === sparkleBurst.id ? null : burst) : undefined}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
                 {leavingCard && renderCard(leavingCard.deck, leavingCard.card, leavingCard.index, "exit-continued", false)}
                 {renderCard(active, currentCard, cardIndex, cardPhase, true)}
               </>
@@ -672,6 +712,8 @@ export function Skills() {
         .skills-card-enter { animation: skills-card-emerge 500ms ease-out both; z-index: 2; }
         .skills-card-exit { animation: skills-card-dissolve 700ms ease both; pointer-events: none; }
         .skills-card-exit-continued { animation-delay: -300ms; }
+        .skills-sparkle-burst { position: absolute; z-index: 3; top: 50%; left: 50%; width: min(100%, 460px); height: 220px; transform: translate(-50%, -50%); pointer-events: none; overflow: visible; }
+        .skills-sparkle { position: absolute; top: var(--sparkle-y); left: calc(50% + var(--sparkle-x)); width: var(--sparkle-size); height: var(--sparkle-size); border-radius: 50%; background: var(--sparkle-color); box-shadow: 0 0 6px 1px var(--sparkle-color); opacity: 0; animation: skills-sparkle-rise 1200ms ease-out var(--sparkle-delay) both; }
         .skills-card-layer:has(.skills-active-card:disabled) { pointer-events: none; }
         .skills-active-card:focus-visible { outline: 2px solid var(--deck-color); outline-offset: 4px; }
         .skills-badge {
@@ -693,6 +735,11 @@ export function Skills() {
         @keyframes skills-card-dissolve {
           to { opacity: 0; filter: blur(10px); transform: translate(-50%, calc(-50% - 24px)) scale(1.04); }
         }
+        @keyframes skills-sparkle-rise {
+          0% { opacity: 0; transform: translate(0, 0) scale(0.7); }
+          12% { opacity: 1; }
+          100% { opacity: 0; transform: translate(var(--sparkle-drift), calc(-1 * var(--sparkle-rise))) scale(0.4); }
+        }
         @keyframes skills-deck-pulse {
           0%, 100% { box-shadow: 0 0 18px color-mix(in oklab, var(--deck-color) 24%, transparent); }
           50% { box-shadow: 0 0 32px color-mix(in oklab, var(--deck-color) 42%, transparent); }
@@ -709,6 +756,7 @@ export function Skills() {
         }
         @media (prefers-reduced-motion: reduce) {
           .skills-progress-track { display: none; }
+          .skills-sparkle-burst { display: none; }
           .skills-stage-fade, .skills-deck, .skills-card-enter, .skills-card-exit { animation: none !important; transition: none !important; }
           .skills-card-layer { opacity: 1; filter: none; transform: translate(-50%, -50%); }
           .skills-deck:hover, .skills-deck[aria-pressed="true"] { box-shadow: none; transform: none; animation: none; }
