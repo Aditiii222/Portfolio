@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Github, Linkedin, MapPin } from "lucide-react";
-import profileImg from "@/assets/aditi-portrait.png.asset.json";
+import profileImg from "@/assets/aditi-portrait.png";
 
 const nodes = [
   { x: 12, y: 22, d: 0 },
@@ -198,7 +198,7 @@ export function Hero() {
             />
             <div className="glass relative overflow-hidden rounded-[2rem] p-2">
               <img
-                src={profileImg.url}
+                src={profileImg}
                 alt="Aditi Anand Guddeti"
                 width={912}
                 height={912}

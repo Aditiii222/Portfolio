@@ -324,7 +324,6 @@ const decks: Deck[] = [
     title: "What comes next",
     badge: "In progress",
     color: "#8B5CF6",
-    dashed: true,
     cards: [
       { title: "Machine Learning Specialization", body: "Andrew Ng, Coursera" },
       { title: "Kaggle", body: "Courses and competitions" },
@@ -384,6 +383,7 @@ export function Skills() {
     clearTimers();
     transitioning.current = false;
     setLeavingCard(null);
+    setSparkleBurst(null);
     setActiveDeck(deck.id);
     setCardIndex(0);
     setFinished(false);
@@ -446,6 +446,7 @@ export function Skills() {
     clearTimers();
     transitioning.current = false;
     setLeavingCard(null);
+    setSparkleBurst(null);
     setCardIndex(0);
     setFinished(false);
     setCardPhase("enter");
@@ -459,7 +460,7 @@ export function Skills() {
     interactive: boolean,
   ) => (
     <div
-      key={`${deck.id}-${index}-${phase}`}
+      key={`${deck.id}-${index}-${interactive ? "current" : "leaving"}`}
       className={`skills-card-layer ${phase === "enter" ? "skills-card-enter" : ""} ${phase.startsWith("exit") ? "skills-card-exit" : ""} ${phase === "exit-continued" ? "skills-card-exit-continued" : ""}`}
       style={{ "--deck-color": deck.color } as CSSProperties}
       aria-hidden={!interactive || undefined}
@@ -525,40 +526,40 @@ export function Skills() {
               </div>
             ) : currentCard ? (
               <>
-                {sparkleBurst && reducedMotion === false && (
-                  <div
-                    key={sparkleBurst.id}
-                    className="skills-sparkle-burst"
-                    style={{ "--sparkle-color": sparkleBurst.color } as CSSProperties}
-                    aria-hidden="true"
-                  >
-                    {Array.from({ length: 12 }, (_, index) => {
-                      const x = [-42, -24, -8, 17, 35, 44, 31, 10, -17, -37, 0, 24][index] ?? 0;
-                      const y = [28, 52, 76, 63, 35, 70, 15, 88, 45, 82, 8, 56][index] ?? 50;
-                      const drift = [-28, 18, -12, 32, -22, 8, 24, -34, 12, 28, -6, -18][index] ?? 0;
-                      const rise = [58, 82, 48, 72, 94, 54, 68, 44, 88, 62, 76, 52][index] ?? 60;
-                      return (
-                        <span
-                          key={index}
-                          className="skills-sparkle"
-                          style={{
-                            "--sparkle-x": `${x}px`,
-                            "--sparkle-y": `${y}%`,
-                            "--sparkle-drift": `${drift}px`,
-                            "--sparkle-rise": `${rise}px`,
-                            "--sparkle-size": index % 3 === 0 ? "3px" : "2px",
-                            "--sparkle-delay": `${index * 12}ms`,
-                          } as CSSProperties}
-                          onAnimationEnd={index === 11 ? () => setSparkleBurst((burst) => burst?.id === sparkleBurst.id ? null : burst) : undefined}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
                 {leavingCard && renderCard(leavingCard.deck, leavingCard.card, leavingCard.index, "exit-continued", false)}
                 {renderCard(active, currentCard, cardIndex, cardPhase, true)}
               </>
             ) : null}
+            {sparkleBurst && reducedMotion === false && (
+              <div
+                key={sparkleBurst.id}
+                className="skills-sparkle-burst"
+                style={{ "--sparkle-color": sparkleBurst.color } as CSSProperties}
+                aria-hidden="true"
+              >
+                {Array.from({ length: 12 }, (_, index) => {
+                  const x = [-42, -24, -8, 17, 35, 44, 31, 10, -17, -37, 0, 24][index] ?? 0;
+                  const y = [28, 52, 76, 63, 35, 70, 15, 88, 45, 82, 8, 56][index] ?? 50;
+                  const drift = [-28, 18, -12, 32, -22, 8, 24, -34, 12, 28, -6, -18][index] ?? 0;
+                  const rise = [58, 82, 48, 72, 94, 54, 68, 44, 88, 62, 76, 52][index] ?? 60;
+                  return (
+                    <span
+                      key={index}
+                      className="skills-sparkle"
+                      style={{
+                        "--sparkle-x": `${x}px`,
+                        "--sparkle-y": `${y}%`,
+                        "--sparkle-drift": `${drift}px`,
+                        "--sparkle-rise": `${rise}px`,
+                        "--sparkle-size": index % 3 === 0 ? "3px" : "2px",
+                        "--sparkle-delay": `${index * 12}ms`,
+                      } as CSSProperties}
+                      onAnimationEnd={index === 11 ? () => setSparkleBurst((burst) => burst?.id === sparkleBurst.id ? null : burst) : undefined}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-2 sm:gap-6">
